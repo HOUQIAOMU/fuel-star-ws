@@ -1,0 +1,22 @@
+Files /home/jacob/fuel/src/FUEL/fuel_planner/active_perception/CMakeLists.txt and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/CMakeLists.txt differ
+Only in /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception: code_files
+Files /home/jacob/fuel/src/FUEL/fuel_planner/active_perception/include/active_perception/frontier_finder.h and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/frontier_finder.h differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/active_perception/include/active_perception/graph_node.h and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/graph_node.h differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/active_perception/include/active_perception/perception_utils.h and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/perception_utils.h differ
+Only in /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception: tic_toc.h
+Files /home/jacob/fuel/src/FUEL/fuel_planner/active_perception/src/frontier_finder.cpp and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/src/frontier_finder.cpp differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/active_perception/src/graph_node.cpp and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/src/graph_node.cpp differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/active_perception/src/perception_utils.cpp and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/src/perception_utils.cpp differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/exploration_manager/launch/simulator.xml and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/exploration_manager/launch/simulator.xml differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/CMakeLists.txt and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/CMakeLists.txt differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/include/plan_env/edt_environment.h and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include/plan_env/edt_environment.h differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/include/plan_env/map_ros.h and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include/plan_env/map_ros.h differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/include/plan_env/sdf_map.h and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include/plan_env/sdf_map.h differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/package.xml and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/package.xml differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/src/map_ros.cpp and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/src/map_ros.cpp differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/src/raycast.cpp and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/src/raycast.cpp differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/src/sdf_map.cpp and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/src/sdf_map.cpp differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/plan_manage/launch/kino_algorithm.xml and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_manage/launch/kino_algorithm.xml differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/utils/lkh_tsp_solver/resource/single.par and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/utils/lkh_tsp_solver/resource/single.par differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/utils/lkh_tsp_solver/resource/single.tsp and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/utils/lkh_tsp_solver/resource/single.tsp differ
+Files /home/jacob/fuel/src/FUEL/fuel_planner/utils/lkh_tsp_solver/resource/single.txt and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/utils/lkh_tsp_solver/resource/single.txt differ

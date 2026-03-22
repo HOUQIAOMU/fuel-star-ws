@@ -1,0 +1,17 @@
+diff /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/CMakeLists.txt /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/CMakeLists.txt
+5,6c5
+< set(CMAKE_CXX_FLAGS "-std=c++11")
+< set(CMAKE_CXX_STANDARD 14)
+---
+> set(CMAKE_CXX_FLAGS "-std=c++14")
+8c7
+< 
+---
+> set(CMAKE_CXX_STANDARD 14)
+12a12
+>   tf
+Common subdirectories: /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/include and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include
+diff /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/package.xml /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/package.xml
+62d61
+< 
+Common subdirectories: /home/jacob/fuel/src/FUEL/fuel_planner/plan_env/src and /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/src

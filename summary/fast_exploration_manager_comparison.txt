@@ -1,0 +1,265 @@
+================================================================================
+         fast_exploration_manager.cpp 详细对比分析报告
+================================================================================
+
+生成日期: 2026-03-22
+源文件1: /home/jacob/star-searcher/src/STAR-Searcher/Star-Searcher/search_planner/
+          search_planner/exploration_manager/src/fast_exploration_manager.cpp
+源文件2: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/exploration_manager/
+         src/fast_exploration_manager.cpp
+
+总差异行数: 1052 行
+
+================================================================================
+1. INCLUDE 文件顺序变化
+================================================================================
+
+【star-searcher 版本 - 原始顺序】
+┌─────────────────────────────────────────────────────────────────┐
+│ #include <active_perception/frontier_finder.h>                 │
+│ #include <active_perception/graph_node.h>                      │
+│ #include <active_perception/graph_search.h>                    │
+│ #include <active_perception/perception_utils.h>                │
+│ #include <exploration_manager/expl_data.h>                     │
+│ #include <exploration_manager/fast_exploration_manager.h>      │
+│ #include <fstream>                                             │
+│ #include <iostream>                                            │
+│ #include <lkh_tsp_solver/lkh_interface.h>                      │
+│ #include <plan_env/edt_environment.h>                          │
+│ #include <plan_env/raycast.h>                                  │
+│ #include <plan_env/sdf_map.h>                                  │
+│ #include <plan_manage/planner_manager.h>                       │
+│ #include <thread>                                              │
+│ #include <traj_utils/planning_visualization.h>                 │
+└─────────────────────────────────────────────────────────────────┘
+
+【fuel_star_ws 版本 - 重组后的顺序】
+┌─────────────────────────────────────────────────────────────────┐
+│ #include <exploration_manager/fast_exploration_manager.h>      │
+│ #include <thread>                                              │
+│ #include <iostream>                                            │
+│ #include <fstream>                                             │
+│ #include <lkh_tsp_solver/lkh_interface.h>                      │
+│ #include <active_perception/graph_node.h>                      │
+│ #include <active_perception/graph_search.h>                    │
+│ #include <active_perception/perception_utils.h>                │
+│ #include <plan_env/raycast.h>                                  │
+│ #include <plan_env/sdf_map.h>                                  │
+│ #include <plan_env/edt_environment.h>                          │
+│ #include <active_perception/frontier_finder.h>                 │
+│ #include <plan_manage/planner_manager.h>                       │
+│                                                                 │
+│ #include <exploration_manager/expl_data.h>                     │
+└─────────────────────────────────────────────────────────────────┘
+
+变化说明:
+  - 移除了: #include <traj_utils/planning_visualization.h>
+  - 重新组织了包含顺序（按逻辑分组）
+  - 添加了空行以改善可读性
+
+================================================================================
+2. 构造函数格式变化
+================================================================================
+
+【star-searcher 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ FastExplorationManager::FastExplorationManager() {}             │
+└─────────────────────────────────────────────────────────────────┘
+
+【fuel_star_ws 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ FastExplorationManager::FastExplorationManager() {              │
+│ }                                                               │
+└─────────────────────────────────────────────────────────────────┘
+
+变化说明: 函数体格式从单行改为多行（编码风格调整）
+
+================================================================================
+3. 参数声明风格变化
+================================================================================
+
+【star-searcher 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ void FastExplorationManager::initialize(ros::NodeHandle &nh) {  │
+└─────────────────────────────────────────────────────────────────┘
+
+【fuel_star_ws 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ void FastExplorationManager::initialize(ros::NodeHandle& nh) {  │
+└─────────────────────────────────────────────────────────────────┘
+
+变化说明: 指针符号位置 (& 前置改为 & 后置)
+
+================================================================================
+4. 关键代码移除 - visualization 初始化
+================================================================================
+
+【star-searcher 版本 - 第43行】
+┌─────────────────────────────────────────────────────────────────┐
+│ visualization_.reset(new PlanningVisualization(nh));            │
+└─────────────────────────────────────────────────────────────────┘
+
+【fuel_star_ws 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ (已删除)                                                         │
+└─────────────────────────────────────────────────────────────────┘
+
+影响: PlanningVisualization 功能被移除或禁用
+
+================================================================================
+5. 参数读取变化 - 大量参数移除
+================================================================================
+
+【star-searcher 版本 包含的参数】
+┌─────────────────────────────────────────────────────────────────┐
+│ nh.param("exploration/init_plan_num", ep_->init_plan_num_, 2);│
+│ nh.param("exploration/alc_cp_search_range",                    │
+│          ep_->alc_cp_search_range_, 10);                        │
+│ nh.param("exploration/enable_fixed_hgrid",                     │
+│          ep_->enable_fixed_hgrid_, false);                      │
+│ nh.param("exploration/perception_aware_local",                 │
+│          ep_->perception_aware_local_, false);                  │
+│ nh.param("exploration/feature_max_dist",                       │
+│          ep_->feature_max_dist_, -1.0);                         │
+│ nh.param("exploration/inertial_cost_offset",                   │
+│          ep_->inertial_cost_offset_, -1.0);                     │
+│ nh.param("exploration/verbose_active_loop",                    │
+│          ep_->verbose_active_loop_, false);                     │
+└─────────────────────────────────────────────────────────────────┘
+
+【fuel_star_ws 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ (所有上述参数都已移除，只保留基础参数)                           │
+└─────────────────────────────────────────────────────────────────┘
+
+移除的参数:
+  1. exploration/init_plan_num - 初始规划数
+  2. exploration/alc_cp_search_range - ALC CP搜索范围
+  3. exploration/enable_fixed_hgrid - 是否启用固定网格
+  4. exploration/perception_aware_local - 感知感知本地
+  5. exploration/feature_max_dist - 特征最大距离
+  6. exploration/inertial_cost_offset - 惯性成本偏移
+  7. exploration/verbose_active_loop - 详细活动循环输出
+
+影响: 简化了参数配置，移除了高级功能参数
+
+================================================================================
+6. 搜索参数注释状态变化
+================================================================================
+
+【star-searcher 版本 - 全部注释】
+┌─────────────────────────────────────────────────────────────────┐
+│ // planner_manager_->path_finder_->lambda_heu_ = 1.0;          │
+│ // // planner_manager_->path_finder_->max_search_time_ = 0.05; │
+│ // planner_manager_->path_finder_->max_search_time_ = 1.0;     │
+└─────────────────────────────────────────────────────────────────┘
+
+【fuel_star_ws 版本 - 部分启用】
+┌─────────────────────────────────────────────────────────────────┐
+│ planner_manager_->path_finder_->lambda_heu_ = 1.0;             │
+│ // planner_manager_->path_finder_->max_search_time_ = 0.05;    │
+│ planner_manager_->path_finder_->max_search_time_ = 1.0;        │
+└─────────────────────────────────────────────────────────────────┘
+
+变化说明:
+  - lambda_heu_ 参数从注释启用为活跃
+  - max_search_time_ 参数启用，设置为1.0秒
+  - 这些参数控制A*搜索的启发式权重和最大搜索时间
+
+影响: 启用了路径查询的启发式搜索优化
+
+================================================================================
+7. TSP参数文件生成变化
+================================================================================
+
+【star-searcher 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ ofstream par_file_hgrid(ep_->tsp_dir_ + "/single_hgrid.par");  │
+│ par_file_hgrid << "PROBLEM_FILE = " << ep_->tsp_dir_ <<        │
+│                   "/single_hgrid.tsp\n";                        │
+│ par_file_hgrid << "GAIN23 = NO\n";                              │
+│ ...                                                             │
+└─────────────────────────────────────────────────────────────────┘
+
+【fuel_star_ws 版本】
+┌─────────────────────────────────────────────────────────────────┐
+│ (已删除 - TSP hgrid 参数文件生成被移除)                          │
+└─────────────────────────────────────────────────────────────────┘
+
+影响: 移除了hgrid相关的TSP配置文件生成
+
+================================================================================
+8. 主要功能差异分析
+================================================================================
+
+删除/禁用的功能:
+  ✗ PlanningVisualization 可视化功能
+  ✗ 感知感知相关参数（perception_aware_local, feature_max_dist等）
+  ✗ HGRID（层级网格）相关配置
+  ✗ 高级规划参数（init_plan_num, alc_cp_search_range）
+  ✗ 详细调试输出（verbose_active_loop）
+
+启用/强化的功能:
+  ✓ 启用了A*搜索的启发式权重（lambda_heu_）
+  ✓ 明确设置了最大搜索时间限制（max_search_time_）
+
+保留的功能:
+  ✓ 基础探索管理
+  ✓ 视点规划
+  ✓ TSP求解（简化版本）
+  ✓ 环境感知（EDF）
+  ✓ 边界查找
+
+================================================================================
+9. 代码复杂度变化
+================================================================================
+
+star-searcher 版本特点:
+  - 支持高级功能选项（HGRID, 感知优化）
+  - 支持详细的调试和可视化
+  - 可配置性强
+  - 代码量多
+
+fuel_star_ws 版本特点:
+  - 功能简化和精简
+  - 核心探索算法优化
+  - 代码量减少
+  - 专注于基础探索功能
+
+================================================================================
+10. 总体评估
+================================================================================
+
+版本比较:
+
+特性                        | star-searcher  | fuel_star_ws
+─────────────────────────────────────────────────────────────────
+可视化支持                   |      ✓         |      ✗
+感知感知优化                 |      ✓         |      ✗
+HGRID支持                   |      ✓         |      ✗
+A*启发式优化启用             |      ✗         |      ✓
+代码可维护性                 |      低        |      高
+功能数量                     |      多        |      少
+性能优化                     |      弱        |      强
+核心探索功能                 |      ✓         |      ✓
+
+结论:
+fuel_star_ws 版本是 star-searcher 版本的简化和优化版本，
+移除了可视化和高级特性，专注于核心探索算法的性能优化。
+该版本适合于性能要求高但不需要详细可视化的应用场景。
+
+================================================================================
+11. 建议
+================================================================================
+
+如果需要在 fuel_star_ws 中恢复的功能:
+  1. 需要可视化: 恢复 #include <traj_utils/planning_visualization.h>
+  2. 需要感知优化: 恢复 perception_aware_local 相关参数
+  3. 需要HGRID: 恢复 enable_fixed_hgrid 和相关TSP配置
+  4. 需要详细调试: 恢复 verbose_active_loop 参数
+
+性能优化建议:
+  - 当前启用了 lambda_heu_ = 1.0 和 max_search_time_ = 1.0
+  - 可进一步调整这些参数来优化搜索性能和质量的平衡
+
+================================================================================

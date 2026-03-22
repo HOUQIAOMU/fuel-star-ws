@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/pose_utils/include/pose_utils.h
+iostream
+-
+armadillo
+/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/pose_utils/include/armadillo
+
+/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/pose_utils/src/pose_utils.cpp
+pose_utils.h
+/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/pose_utils/src/pose_utils.h
+

@@ -1,0 +1,266 @@
+13d12
+< 
+26c25
+< 
+---
+> class camlidFusion;
+32,55c31,70
+<   enum OCCUPANCY { UNKNOWN, FREE, OCCUPIED };
+< 
+<   void initMap(ros::NodeHandle& nh);
+<   void inputPointCloud(const pcl::PointCloud<pcl::PointXYZ>& points, const int& point_num,
+<                        const Eigen::Vector3d& camera_pos);
+< 
+<   void posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& id);
+<   void indexToPos(const Eigen::Vector3i& id, Eigen::Vector3d& pos);
+<   void boundIndex(Eigen::Vector3i& id);
+<   int toAddress(const Eigen::Vector3i& id);
+<   int toAddress(const int& x, const int& y, const int& z);
+<   bool isInMap(const Eigen::Vector3d& pos);
+<   bool isInMap(const Eigen::Vector3i& idx);
+<   bool isInBox(const Eigen::Vector3i& id);
+<   bool isInBox(const Eigen::Vector3d& pos);
+<   void boundBox(Eigen::Vector3d& low, Eigen::Vector3d& up);
+<   int getOccupancy(const Eigen::Vector3d& pos);
+<   int getOccupancy(const Eigen::Vector3i& id);
+<   void setOccupied(const Eigen::Vector3d& pos, const int& occ = 1);
+<   int getInflateOccupancy(const Eigen::Vector3d& pos);
+<   int getInflateOccupancy(const Eigen::Vector3i& id);
+<   double getDistance(const Eigen::Vector3d& pos);
+<   double getDistance(const Eigen::Vector3i& id);
+<   double getDistWithGrad(const Eigen::Vector3d& pos, Eigen::Vector3d& grad);
+---
+>   enum OCCUPANCY {
+>     UNKNOWN,
+>     FREE,
+>     UNDEROBSERVED,
+>     OCCUPIED,
+>   };
+> 
+>   void initMap(ros::NodeHandle &nh);
+>   void inputCamLidarPointCloud(const Eigen::MatrixXd &points,
+>                                const Eigen::MatrixXd &pts_uv,
+>                                const Eigen::MatrixXd &lidar_pts,
+>                                const Eigen::Vector3d &lidar_pos);
+>   void inputPointCloud(
+>                                 const pcl::PointCloud<pcl::PointXYZ>& points, const int& point_num,
+>                                 const Eigen::Vector3d& camera_pos, bool air);
+> 
+>   void posToIndex(const Eigen::Vector3d &pos, Eigen::Vector3i &id);
+>   void indexToPos(const Eigen::Vector3i &id, Eigen::Vector3d &pos);
+>   void boundIndex(Eigen::Vector3i &id);
+>   int toAddress(const Eigen::Vector3i &id);
+>   int toAddress(const int &x, const int &y, const int &z);
+>   bool isInMap(const Eigen::Vector3d &pos);
+>   bool isInMap(const Eigen::Vector3i &idx);
+>   bool isInBox(const Eigen::Vector3i &id);
+>   bool isInBox(const Eigen::Vector3d &pos);
+>   void boundBox(Eigen::Vector3d &low, Eigen::Vector3d &up);
+>   double getObserverDist(const Eigen::Vector3d &pos);
+>   double getObserverDist(const Eigen::Vector3i &id);
+>   int getOccupancy(const Eigen::Vector3d &pos);
+>   int getOccupancy(const Eigen::Vector3i &id);
+>   void setOccupied(const Eigen::Vector3d &pos, const int &occ = 1);
+>   int getInflateOccupancy(const Eigen::Vector3d &pos);
+>   int getInflateOccupancy(const Eigen::Vector3i &id);
+>   double getDistance(const Eigen::Vector3d &pos);
+>   double getDistance(const Eigen::Vector3i &id);
+>   void getDistanceAndGradient(const Eigen::Vector3d &pos, double &distance,
+>                               Eigen::Vector3d &gradient);
+>   void getDistanceAndGradient(const Eigen::Vector3i &idx, double &distance,
+>                               Eigen::Vector3d &gradient);
+>   double getDistWithGrad(const Eigen::Vector3d &pos, Eigen::Vector3d &grad);
+58c73
+<   void resetBuffer(const Eigen::Vector3d& min, const Eigen::Vector3d& max);
+---
+>   void resetBuffer(const Eigen::Vector3d &min, const Eigen::Vector3d &max);
+60,62c75,78
+<   void getRegion(Eigen::Vector3d& ori, Eigen::Vector3d& size);
+<   void getBox(Eigen::Vector3d& bmin, Eigen::Vector3d& bmax);
+<   void getUpdatedBox(Eigen::Vector3d& bmin, Eigen::Vector3d& bmax, bool reset = false);
+---
+>   void getRegion(Eigen::Vector3d &ori, Eigen::Vector3d &size);
+>   void getBox(Eigen::Vector3d &bmin, Eigen::Vector3d &bmax);
+>   void getUpdatedBox(Eigen::Vector3d &bmin, Eigen::Vector3d &bmax,
+>                      bool reset = false);
+64a81,82
+>   double getZ();
+>   double getBeliefDist();
+68,70c86,91
+<   void inflatePoint(const Eigen::Vector3i& pt, int step, vector<Eigen::Vector3i>& pts);
+<   void setCacheOccupancy(const int& adr, const int& occ);
+<   Eigen::Vector3d closetPointInMap(const Eigen::Vector3d& pt, const Eigen::Vector3d& camera_pt);
+---
+>   void inflatePoint(const Eigen::Vector3i &pt, int step,
+>                     vector<Eigen::Vector3i> &pts);
+>   void setCacheOccupancy(const int &adr, const int &occ);
+>   void setObservedDist(const int &adr, const double &dist);
+>   Eigen::Vector3d closetPointInMap(const Eigen::Vector3d &pt,
+>                                    const Eigen::Vector3d &camera_pt);
+72,78c93,102
+<   void fillESDF(F_get_val f_get_val, F_set_val f_set_val, int start, int end, int dim);
+< 
+<   unique_ptr<MapParam> mp_;
+<   unique_ptr<MapData> md_;
+<   unique_ptr<MapROS> mr_;
+<   unique_ptr<RayCaster> caster_;
+< 
+---
+>   void fillESDF(F_get_val f_get_val, F_set_val f_set_val, int start, int end,
+>                 int dim);
+>   vector<Eigen::Vector3i> sixNeighbors(const Eigen::Vector3i &voxel);
+>   bool isInObstacle(const Eigen::Vector3i idx);
+>   ros::Publisher debug_pts_pub_;
+>   std::unique_ptr<MapParam> mp_;
+>   std::unique_ptr<MapData> md_;
+>   // std::unique_ptr<MapROS> mr_;
+>   std::unique_ptr<RayCaster> caster_;
+>   std::unique_ptr<MapROS> mr_;
+79a104
+>   friend camlidFusion;
+90a116
+>   double belief_dist_;
+99,100c125,127
+<   double p_hit_, p_miss_, p_min_, p_max_, p_occ_;  // occupancy probability
+<   double prob_hit_log_, prob_miss_log_, clamp_min_log_, clamp_max_log_, min_occupancy_log_;  // logit
+---
+>   double p_hit_, p_miss_, p_min_, p_max_, p_occ_; // occupancy probability
+>   double prob_hit_log_, prob_miss_log_, clamp_min_log_, clamp_max_log_,
+>       min_occupancy_log_; // logit
+110a138
+>   std::vector<double> min_observed_dist_;
+127c155,156
+< inline void SDFMap::posToIndex(const Eigen::Vector3d& pos, Eigen::Vector3i& id) {
+---
+> inline void SDFMap::posToIndex(const Eigen::Vector3d &pos,
+>                                Eigen::Vector3i &id) {
+132c161,162
+< inline void SDFMap::indexToPos(const Eigen::Vector3i& id, Eigen::Vector3d& pos) {
+---
+> inline void SDFMap::indexToPos(const Eigen::Vector3i &id,
+>                                Eigen::Vector3d &pos) {
+137c167
+< inline void SDFMap::boundIndex(Eigen::Vector3i& id) {
+---
+> inline void SDFMap::boundIndex(Eigen::Vector3i &id) {
+145,146c175,177
+< inline int SDFMap::toAddress(const int& x, const int& y, const int& z) {
+<   return x * mp_->map_voxel_num_(1) * mp_->map_voxel_num_(2) + y * mp_->map_voxel_num_(2) + z;
+---
+> inline int SDFMap::toAddress(const int &x, const int &y, const int &z) {
+>   return x * mp_->map_voxel_num_(1) * mp_->map_voxel_num_(2) +
+>          y * mp_->map_voxel_num_(2) + z;
+149c180
+< inline int SDFMap::toAddress(const Eigen::Vector3i& id) {
+---
+> inline int SDFMap::toAddress(const Eigen::Vector3i &id) {
+153,154c184,186
+< inline bool SDFMap::isInMap(const Eigen::Vector3d& pos) {
+<   if (pos(0) < mp_->map_min_boundary_(0) + 1e-4 || pos(1) < mp_->map_min_boundary_(1) + 1e-4 ||
+---
+> inline bool SDFMap::isInMap(const Eigen::Vector3d &pos) {
+>   if (pos(0) < mp_->map_min_boundary_(0) + 1e-4 ||
+>       pos(1) < mp_->map_min_boundary_(1) + 1e-4 ||
+157c189,190
+<   if (pos(0) > mp_->map_max_boundary_(0) - 1e-4 || pos(1) > mp_->map_max_boundary_(1) - 1e-4 ||
+---
+>   if (pos(0) > mp_->map_max_boundary_(0) - 1e-4 ||
+>       pos(1) > mp_->map_max_boundary_(1) - 1e-4 ||
+163,165c196,200
+< inline bool SDFMap::isInMap(const Eigen::Vector3i& idx) {
+<   if (idx(0) < 0 || idx(1) < 0 || idx(2) < 0) return false;
+<   if (idx(0) > mp_->map_voxel_num_(0) - 1 || idx(1) > mp_->map_voxel_num_(1) - 1 ||
+---
+> inline bool SDFMap::isInMap(const Eigen::Vector3i &idx) {
+>   if (idx(0) < 0 || idx(1) < 0 || idx(2) < 0)
+>     return false;
+>   if (idx(0) > mp_->map_voxel_num_(0) - 1 ||
+>       idx(1) > mp_->map_voxel_num_(1) - 1 ||
+171c206
+< inline bool SDFMap::isInBox(const Eigen::Vector3i& id) {
+---
+> inline bool SDFMap::isInBox(const Eigen::Vector3i &id) {
+180c215
+< inline bool SDFMap::isInBox(const Eigen::Vector3d& pos) {
+---
+> inline bool SDFMap::isInBox(const Eigen::Vector3d &pos) {
+189c224
+< inline void SDFMap::boundBox(Eigen::Vector3d& low, Eigen::Vector3d& up) {
+---
+> inline void SDFMap::boundBox(Eigen::Vector3d &low, Eigen::Vector3d &up) {
+195,197c230,243
+< 
+< inline int SDFMap::getOccupancy(const Eigen::Vector3i& id) {
+<   if (!isInMap(id)) return -1;
+---
+> inline double SDFMap::getObserverDist(const Eigen::Vector3d &pos) {
+>   Eigen::Vector3i id;
+>   posToIndex(pos, id);
+>   return getOccupancy(id);
+> }
+> inline double SDFMap::getObserverDist(const Eigen::Vector3i &id) {
+>   if (!isInMap(id))
+>     return -1;
+>   double min_dist = md_->min_observed_dist_[toAddress(id)];
+>   return min_dist;
+> }
+> inline int SDFMap::getOccupancy(const Eigen::Vector3i &id) {
+>   if (!isInMap(id))
+>     return -1;
+199,200c245,255
+<   if (occ < mp_->clamp_min_log_ - 1e-3) return UNKNOWN;
+<   if (occ > mp_->min_occupancy_log_) return OCCUPIED;
+---
+>   double observed_dist = md_->min_observed_dist_[toAddress(id)];
+>   if (occ < mp_->clamp_min_log_ - 1e-3)
+>     return UNKNOWN;
+> 
+>   if (occ > mp_->min_occupancy_log_) {
+>     if (observed_dist > mp_->belief_dist_)
+>       return UNDEROBSERVED;
+>     else
+>       return OCCUPIED;
+>   }
+> 
+204c259
+< inline int SDFMap::getOccupancy(const Eigen::Vector3d& pos) {
+---
+> inline int SDFMap::getOccupancy(const Eigen::Vector3d &pos) {
+210,211c265,267
+< inline void SDFMap::setOccupied(const Eigen::Vector3d& pos, const int& occ) {
+<   if (!isInMap(pos)) return;
+---
+> inline void SDFMap::setOccupied(const Eigen::Vector3d &pos, const int &occ) {
+>   if (!isInMap(pos))
+>     return;
+217,218c273,275
+< inline int SDFMap::getInflateOccupancy(const Eigen::Vector3i& id) {
+<   if (!isInMap(id)) return -1;
+---
+> inline int SDFMap::getInflateOccupancy(const Eigen::Vector3i &id) {
+>   if (!isInMap(id))
+>     return -1;
+222c279
+< inline int SDFMap::getInflateOccupancy(const Eigen::Vector3d& pos) {
+---
+> inline int SDFMap::getInflateOccupancy(const Eigen::Vector3d &pos) {
+228,229c285,287
+< inline double SDFMap::getDistance(const Eigen::Vector3i& id) {
+<   if (!isInMap(id)) return -1;
+---
+> inline double SDFMap::getDistance(const Eigen::Vector3i &id) {
+>   if (!isInMap(id))
+>     return -1;
+233c291
+< inline double SDFMap::getDistance(const Eigen::Vector3d& pos) {
+---
+> inline double SDFMap::getDistance(const Eigen::Vector3d &pos) {
+239c297,298
+< inline void SDFMap::inflatePoint(const Eigen::Vector3i& pt, int step, vector<Eigen::Vector3i>& pts) {
+---
+> inline void SDFMap::inflatePoint(const Eigen::Vector3i &pt, int step,
+>                                  vector<Eigen::Vector3i> &pts) {
+267c326
+< }
+---
+> } // namespace fast_planner
