@@ -3,7 +3,6 @@
 #include <plan_env/sdf_map.h>
 #include <plan_env/raycast.h>
 
-#include <thread>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -884,4 +883,4 @@ void FastPlannerManager::calcNextYaw(const double& last_yaw, double& yaw) {
   }
 }
 
-}  // namespace fast_planner
+} // namespace fast_planner
