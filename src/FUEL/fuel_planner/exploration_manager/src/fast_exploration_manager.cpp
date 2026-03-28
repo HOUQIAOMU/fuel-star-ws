@@ -165,6 +165,16 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
   // Do global and local tour planning and retrieve the next viewpoint
   Vector3d next_pos;
   vector<double> next_yaw;
+  
+  //过滤已到达的viewpoint
+    const double arrived_thresh = 0.15;
+    auto filtered_tour = ed_->local_tour_;
+    ed_->local_tour_.erase(
+    std::remove_if(ed_->local_tour_.begin(), ed_->local_tour_.end(),
+    [&](const checkPoint& cp) {return (cp.pos_ - pos).norm() < arrived_thresh;}),
+    ed_->local_tour_.end());
+    if (ed_->local_tour_.empty()) return FAIL;
+
   if (ed_->local_tour_.size() > 1) {
     vector<int> indices;
 
@@ -176,15 +186,12 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
       ed_->local_tour_[i].pos_.y(),
       ed_->local_tour_[i].pos_.z());
 }
-    // 过滤已到达的viewpoint
-    const double arrived_thresh = 0.15;
-    ed_->local_tour_.erase(
-    std::remove_if(ed_->local_tour_.begin(), ed_->local_tour_.end(),
-    [&](const checkPoint& cp) {return (cp.pos_ - pos).norm() < arrived_thresh;}),
-    ed_->local_tour_.end());
-    if (ed_->local_tour_.empty()) return FAIL;
 
     findLocalTour(pos, vel, yaw, next_cluster_pos, indices);
+    if(indices.empty() || indices[0] >= ed_->local_tour_.size()) {
+      ROS_ERROR("Invalid local tour index");
+      return FAIL;
+    }
     next_pos = ed_->local_tour_[indices[0]].pos_;
     next_yaw = ed_->local_tour_[indices[0]].yaws_;
     ed_->local_tour_vis_.clear();
@@ -234,7 +241,7 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
   const double radius_close = 1.5;
   const double len = Astar::pathLength(ed_->path_next_goal_);
   //---------------新加：添加距离判断----------------//
-  const double arrived_thresh = 0.05;
+  
   if (len < arrived_thresh) {
     ROS_WARN("path too short, replanning");
     return FAIL;
