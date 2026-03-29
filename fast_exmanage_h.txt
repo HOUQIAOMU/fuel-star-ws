@@ -1,0 +1,104 @@
+4d3
+< #include <ros/ros.h>
+6a6,7
+> #include <ros/ros.h>
+> #include <string>
+10a12
+> using std::string;
+18a21
+> class PlanningVisualization;
+20a24,25
+> struct FrontierCluster;
+> struct checkPoint;
+22c27
+< enum EXPL_RESULT { NO_FRONTIER, FAIL, SUCCEED };
+---
+> enum EXPL_RESULT { NO_GRID, FAIL, SUCCEED, NO_FRONTIER };
+29,33c34,40
+<   void initialize(ros::NodeHandle& nh);
+< 
+<   int planExploreMotion(const Vector3d& pos, const Vector3d& vel, const Vector3d& acc,
+<                         const Vector3d& yaw);
+< 
+---
+>   void initialize(ros::NodeHandle &nh);
+>   int planExploreMotionCluster(const Vector3d &pos, const Vector3d &vel,
+>                                const Vector3d &acc, const Vector3d &yaw);
+>   int updateFrontierStruct(const Eigen::Vector3d &pos);
+>   // int planTrajToViewInfo(const Vector3d &pos, const Vector3d &vel,
+>   //                        const Vector3d &acc, const Vector3d &yaw,
+>   //                        const Vector3d &next_pos, const double &next_yaw);
+35,36c42,44
+<   int classicFrontier(const Vector3d& pos, const double& yaw);
+<   int rapidFrontier(const Vector3d& pos, const Vector3d& vel, const double& yaw, bool& classic);
+---
+>   int classicFrontier(const Vector3d &pos, const double &yaw);
+>   int rapidFrontier(const Vector3d &pos, const Vector3d &vel, const double &yaw,
+>                     bool &classic);
+37a46
+>  
+41a51,52
+>   shared_ptr<SDFMap> sdf_map_;
+>   shared_ptr<PlanningVisualization> visualization_;
+44a56,64
+>   struct TSPConfig {
+>     int dimension_;
+>     string problem_name_;
+> 
+>     bool skip_first_ = false;
+>     bool skip_last_ = false;
+>     int result_id_offset_ = 1;
+>   };
+> 
+46d65
+<   shared_ptr<SDFMap> sdf_map_;
+49,50c68,69
+<   void findGlobalTour(const Vector3d& cur_pos, const Vector3d& cur_vel, const Vector3d cur_yaw,
+<                       vector<int>& indices);
+---
+>   void findGlobalTour(const Vector3d &cur_pos, const Vector3d &cur_vel,
+>                       const Vector3d cur_yaw, vector<int> &indices);
+52,55c71,77
+<   // Refine local tour for next few frontiers, using more diverse viewpoints
+<   void refineLocalTour(const Vector3d& cur_pos, const Vector3d& cur_vel, const Vector3d& cur_yaw,
+<                        const vector<vector<Vector3d>>& n_points, const vector<vector<double>>& n_yaws,
+<                        vector<Vector3d>& refined_pts, vector<double>& refined_yaws);
+---
+>   void findLocalTour(const Vector3d &cur_pos, const Vector3d &cur_vel,
+>                      const Vector3d cur_yaw, const Vector3d &next_cluster_pos,
+>                      vector<int> &indices);
+> 
+>   void findNextCluster(const Vector3d &cur_pos, const Vector3d &cur_vel,
+>                        const Vector3d &cur_yaw, vector<checkPoint> &check_tour,
+>                        Eigen::Vector3d &next_cluster_pos,const bool neighbor);
+57c79,102
+<   void shortenPath(vector<Vector3d>& path);
+---
+>   // Refine local tour for next few frontiers, using more diverse viewpoints
+>   void refineLocalTour(const Vector3d &cur_pos, const Vector3d &cur_vel,
+>                        const Vector3d &cur_yaw,
+>                        const vector<vector<Vector3d>> &n_points,
+>                        const vector<vector<double>> &n_yaws,
+>                        vector<Vector3d> &refined_pts,
+>                        vector<double> &refined_yaws);
+>   void updateInertialTour(const Vector3d cur_pos,
+>                           const vector<Vector3d> &last_tour,
+>                           const vector<Vector3d> &cluster_centers,
+>                           const Eigen::MatrixXd &cluster_cost_matrix,
+>                           vector<int> &indices, double &inertia_cost);
+> 
+>   void shortenPath(vector<Vector3d> &path);
+>   void solveTSP(const Eigen::MatrixXd &cost_matrix, const TSPConfig &config,
+>                 vector<int> &result_indices, double &total_cost);
+>   // bool findActiveLoop(const Vector3d &cur_pos, const Vector3d &cur_vel,
+>   //                     const Vector3d &cur_yaw, Vector3d &alc_pos,
+>   //                     double &alc_yaw, ros::Time &alc_timestamp,
+>   //                     vector<Vector3d> &alc_pts, vector<double> &alc_yaws,
+>   //                     double &utility);
+>   void clearExplorationData();
+>   double hausdorffDistance(const vector<Vector3d> &set1,
+>                            const vector<Vector3d> &set2, vector<int> &indices);
+63c108
+< }  // namespace fast_planner
+---
+> } // namespace fast_planner

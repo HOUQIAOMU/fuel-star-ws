@@ -125,10 +125,10 @@
     <param name="optimization/ld_dist" value="10.0" type="double"/>
     <param name="optimization/ld_feasi" value="1.0" type="double"/>
     <param name="optimization/ld_start" value="10.0" type="double"/>
-    <param name="optimization/ld_end" value="1.0" type="double"/>
+    <param name="optimization/ld_end" value="5.0" type="double"/>
     <param name="optimization/ld_guide" value="2" type="double"/>
     <param name="optimization/ld_waypt" value="5.0" type="double"/>
-    <param name="optimization/ld_view" value="0.0" type="double"/>
+    <param name="optimization/ld_view" value="2.0" type="double"/>
     <param name="optimization/ld_time" value="0.2" type="double"/>
     
     <param name="optimization/dist0" value="0.4" type="double"/>

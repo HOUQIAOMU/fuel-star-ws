@@ -2,11 +2,10 @@ cmake_minimum_required(VERSION 2.8.3)
 project(plan_manage)
 
 set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++11")
+set(CMAKE_CXX_FLAGS "-std=c++17")
 # set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
-set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall")
-
+set(CMAKE_CXX_STANDARD 14)
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 
@@ -50,6 +49,7 @@ add_executable(fast_planner_node
   )
 target_link_libraries(fast_planner_node 
   ${catkin_LIBRARIES}
+  
   )
 
 add_library(plan_manage 
@@ -59,7 +59,7 @@ add_library(plan_manage
 target_link_libraries(plan_manage ${catkin_LIBRARIES})
 
 add_executable(traj_server src/traj_server.cpp)
-target_link_libraries(traj_server ${catkin_LIBRARIES})
+target_link_libraries(traj_server ${catkin_LIBRARIES} )
 # add_dependencies(traj_server ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
 # benchmark node

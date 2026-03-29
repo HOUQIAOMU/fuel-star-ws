@@ -1,0 +1,647 @@
+2,6c2,4
+< #include <plan_manage/planner_manager.h>
+< #include <exploration_manager/fast_exploration_manager.h>
+< #include <traj_utils/planning_visualization.h>
+< 
+< #include <exploration_manager/fast_exploration_fsm.h>
+---
+> #include "quadrotor_msgs/PositionCommand.h"
+> #include "std_msgs/Int32.h"
+> #include <active_perception/perception_utils.h>
+7a6,7
+> #include <exploration_manager/fast_exploration_fsm.h>
+> #include <exploration_manager/fast_exploration_manager.h>
+10c10,12
+< 
+---
+> #include <plan_manage/planner_manager.h>
+> #include <traj_utils/planning_visualization.h>
+> #include <visualization_msgs/Marker.h>
+14,15c16,17
+< void FastExplorationFSM::init(ros::NodeHandle& nh) {
+<   fp_.reset(new FSMParam);
+---
+> void FastExplorationFSM::init(ros::NodeHandle &nh) {
+>   fp_.reset(new FSMParam); 
+27c29
+<   visualization_.reset(new PlanningVisualization(nh));
+---
+>   this->visualization_ = expl_manager_->visualization_;
+29a32
+>   percep_utils_.reset(new PerceptionUtils(nh));
+32c35,36
+<   fd_->state_str_ = { "INIT", "WAIT_TRIGGER", "PLAN_TRAJ", "PUB_TRAJ", "EXEC_TRAJ", "FINISH" };
+---
+>   fd_->state_str_ = {"INIT",      "WAIT_TRIGGER", "PLAN_TRAJ", "PUB_TRAJ",
+>                      "EXEC_TRAJ", "FINISH",       "SPIRAL"};
+34a39,43
+>   fd_->cmd.kx = {5.7, 5.7, 6.2};
+>   fd_->cmd.kv = {3.4, 3.4, 4.0};
+>   fd_->cmd.header.frame_id = "world";
+>   fd_->cmd.trajectory_flag =
+>       quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_READY;
+37,43c46,56
+<   exec_timer_ = nh.createTimer(ros::Duration(0.01), &FastExplorationFSM::FSMCallback, this);
+<   safety_timer_ = nh.createTimer(ros::Duration(0.05), &FastExplorationFSM::safetyCallback, this);
+<   frontier_timer_ = nh.createTimer(ros::Duration(0.5), &FastExplorationFSM::frontierCallback, this);
+< 
+<   trigger_sub_ =
+<       nh.subscribe("/waypoint_generator/waypoints", 1, &FastExplorationFSM::triggerCallback, this);
+<   odom_sub_ = nh.subscribe("/odom_world", 1, &FastExplorationFSM::odometryCallback, this);
+---
+>   exec_timer_ = nh.createTimer(ros::Duration(0.01),
+>                                &FastExplorationFSM::FSMCallback, this);
+>   safety_timer_ = nh.createTimer(ros::Duration(0.05),
+>                                  &FastExplorationFSM::safetyCallback, this);
+>   frontier_timer_ = nh.createTimer(ros::Duration(0.3),
+>                                    &FastExplorationFSM::frontierCallback, this);
+> 
+>   trigger_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1,
+>                               &FastExplorationFSM::triggerCallback, this);
+>   odom_sub_ = nh.subscribe("/odom_world", 1,
+>                            &FastExplorationFSM::odometryCallback, this);
+47a61,63
+>   start_flag_pub = nh.advertise<std_msgs::Int32>("/start_flag", 10);
+>   spiral_pub_ =
+>       nh.advertise<quadrotor_msgs::PositionCommand>("/planning/pos_cmd", 50);
+50,51c66,69
+< void FastExplorationFSM::FSMCallback(const ros::TimerEvent& e) {
+<   ROS_INFO_STREAM_THROTTLE(1.0, "[FSM]: state: " << fd_->state_str_[int(state_)]);
+---
+> void FastExplorationFSM::FSMCallback(const ros::TimerEvent &e) {
+>   std_msgs::Int32 state_flag;
+>   ROS_INFO_STREAM_THROTTLE(1.0,
+>                            "[FSM]: state: " << fd_->state_str_[int(state_)]);
+54,150c72,153
+<     case INIT: {
+<       // Wait for odometry ready
+<       if (!fd_->have_odom_) {
+<         ROS_WARN_THROTTLE(1.0, "no odom.");
+<         return;
+<       }
+<       // Go to wait trigger when odom is ok
+<       transitState(WAIT_TRIGGER, "FSM");
+<       break;
+<     }
+< 
+<     case WAIT_TRIGGER: {
+<       // Do nothing but wait for trigger
+<       ROS_WARN_THROTTLE(1.0, "wait for trigger.");
+<       break;
+<     }
+< 
+<     case FINISH: {
+<       ROS_INFO_THROTTLE(1.0, "finish exploration.");
+<       break;
+<     }
+< 
+<     case PLAN_TRAJ: {
+<       if (fd_->static_state_) {
+<         // Plan from static state (hover)
+<         fd_->start_pt_ = fd_->odom_pos_;
+<         fd_->start_vel_ = fd_->odom_vel_;
+<         fd_->start_acc_.setZero();
+< 
+<         fd_->start_yaw_(0) = fd_->odom_yaw_;
+<         fd_->start_yaw_(1) = fd_->start_yaw_(2) = 0.0;
+<       } else {
+<         // Replan from non-static state, starting from 'replan_time' seconds later
+<         LocalTrajData* info = &planner_manager_->local_data_;
+<         double t_r = (ros::Time::now() - info->start_time_).toSec() + fp_->replan_time_;
+< 
+<         fd_->start_pt_ = info->position_traj_.evaluateDeBoorT(t_r);
+<         fd_->start_vel_ = info->velocity_traj_.evaluateDeBoorT(t_r);
+<         fd_->start_acc_ = info->acceleration_traj_.evaluateDeBoorT(t_r);
+<         fd_->start_yaw_(0) = info->yaw_traj_.evaluateDeBoorT(t_r)[0];
+<         fd_->start_yaw_(1) = info->yawdot_traj_.evaluateDeBoorT(t_r)[0];
+<         fd_->start_yaw_(2) = info->yawdotdot_traj_.evaluateDeBoorT(t_r)[0];
+<       }
+< 
+<       // Inform traj_server the replanning
+<       replan_pub_.publish(std_msgs::Empty());
+<       int res = callExplorationPlanner();
+<       if (res == SUCCEED) {
+<         transitState(PUB_TRAJ, "FSM");
+<       } else if (res == NO_FRONTIER) {
+<         transitState(FINISH, "FSM");
+<         fd_->static_state_ = true;
+<         clearVisMarker();
+<       } else if (res == FAIL) {
+<         // Still in PLAN_TRAJ state, keep replanning
+<         ROS_WARN("plan fail");
+<         fd_->static_state_ = true;
+<       }
+<       break;
+<     }
+< 
+<     case PUB_TRAJ: {
+<       double dt = (ros::Time::now() - fd_->newest_traj_.start_time).toSec();
+<       if (dt > 0) {
+<         bspline_pub_.publish(fd_->newest_traj_);
+<         fd_->static_state_ = false;
+<         transitState(EXEC_TRAJ, "FSM");
+< 
+<         thread vis_thread(&FastExplorationFSM::visualize, this);
+<         vis_thread.detach();
+<       }
+<       break;
+<     }
+< 
+<     case EXEC_TRAJ: {
+<       LocalTrajData* info = &planner_manager_->local_data_;
+<       double t_cur = (ros::Time::now() - info->start_time_).toSec();
+< 
+<       // Replan if traj is almost fully executed
+<       double time_to_end = info->duration_ - t_cur;
+<       if (time_to_end < fp_->replan_thresh1_) {
+<         transitState(PLAN_TRAJ, "FSM");
+<         ROS_WARN("Replan: traj fully executed=================================");
+<         return;
+<       }
+<       // Replan if next frontier to be visited is covered
+<       if (t_cur > fp_->replan_thresh2_ && expl_manager_->frontier_finder_->isFrontierCovered()) {
+<         transitState(PLAN_TRAJ, "FSM");
+<         ROS_WARN("Replan: cluster covered=====================================");
+<         return;
+<       }
+<       // Replan after some time
+<       if (t_cur > fp_->replan_thresh3_ && !classic_) {
+<         transitState(PLAN_TRAJ, "FSM");
+<         ROS_WARN("Replan: periodic call=======================================");
+<       }
+<       break;
+---
+>   case INIT: {
+>     state_flag.data = INIT;
+>     // Wait for odometry ready
+>     if (!fd_->have_odom_) {
+>       ROS_WARN_THROTTLE(1.0, "no odom.");
+>       return;
+>     }
+>     // Go to wait trigger when odom is ok
+>     transitState(WAIT_TRIGGER, "FSM");
+>     break;
+>   }
+> 
+>   case WAIT_TRIGGER: {
+>     state_flag.data = WAIT_TRIGGER;
+> 
+>     // Do nothing but wait for trigger
+>     ROS_WARN_THROTTLE(1.0, "wait for trigger.");
+>     break;
+>   }
+> 
+>   case FINISH: {
+>     state_flag.data = FINISH;
+>     ROS_INFO_THROTTLE(1.0, "finish exploration.");
+>     break;
+>   }
+> 
+>   case PLAN_TRAJ: {
+>     state_flag.data = PLAN_TRAJ;
+>     if (fd_->static_state_) {
+>       // Plan from static state (hover)
+>       fd_->start_pt_ = fd_->odom_pos_;
+>       fd_->start_vel_ = fd_->odom_vel_;
+>       fd_->start_acc_.setZero();
+> 
+>       fd_->start_yaw_(0) = fd_->odom_yaw_;
+>       fd_->start_yaw_(1) = fd_->start_yaw_(2) = 0.0;
+>     } else {
+>       // Replan from non-static state, starting from 'replan_time' seconds later
+>       LocalTrajData *info = &planner_manager_->local_data_;
+>       double t_r =
+>           (ros::Time::now() - info->start_time_).toSec() + fp_->replan_time_;
+> 
+>       fd_->start_pt_ =
+>           info->need_spiral_
+>               ? info->position_traj_.evaluateDeBoorT(info->duration_)
+>               : info->position_traj_.evaluateDeBoorT(t_r);
+>       fd_->start_vel_ =
+>           info->need_spiral_
+>               ? info->velocity_traj_.evaluateDeBoorT(info->duration_)
+>               : info->velocity_traj_.evaluateDeBoorT(t_r);
+>       fd_->start_acc_ =
+>           info->need_spiral_
+>               ? info->acceleration_traj_.evaluateDeBoorT(info->duration_)
+>               : info->acceleration_traj_.evaluateDeBoorT(t_r);
+>       fd_->start_yaw_(0) = info->need_spiral_
+>                                ? info->spiral_max_yaw_
+>                                : info->yaw_traj_.evaluateDeBoorT(t_r)[0];
+>       fd_->start_yaw_(1) =
+>           info->need_spiral_
+>               ? info->yawdot_traj_.evaluateDeBoorT(info->duration_)[0]
+>               : info->yawdot_traj_.evaluateDeBoorT(t_r)[0];
+>       fd_->start_yaw_(2) =
+>           info->need_spiral_
+>               ? info->yawdotdot_traj_.evaluateDeBoorT(info->duration_)[0]
+>               : info->yawdotdot_traj_.evaluateDeBoorT(t_r)[0];
+>     }
+> 
+>     // Inform traj_server the replanning
+>     replan_pub_.publish(std_msgs::Empty());
+>     int res = callExplorationPlanner();
+>     if (res == SUCCEED) {
+>       transitState(PUB_TRAJ, "FSM");
+>       // visualize();
+>       // thread vis_thread(&FastExplorationFSM::visualize, this);
+>       // vis_thread.detach();
+>     } else if (res == NO_FRONTIER) {
+>       transitState(FINISH, "FSM");
+>       fd_->static_state_ = true;
+>     } else if (res == FAIL) {
+>       // Still in PLAN_TRAJ state, keep replanning
+>       ROS_WARN("plan fail");
+>       fd_->static_state_ = true;
+151a155
+>     break;
+152a157,222
+> 
+>   case PUB_TRAJ: {
+>     state_flag.data = PUB_TRAJ;
+>     double dt = (ros::Time::now() - fd_->newest_traj_.start_time).toSec();
+>     if (dt > 0) {
+>       bspline_pub_.publish(fd_->newest_traj_);
+>       fd_->static_state_ = false;
+>       transitState(EXEC_TRAJ, "FSM");
+>     }
+>     break;
+>   }
+> 
+>   case EXEC_TRAJ: {
+>     state_flag.data = EXEC_TRAJ;
+>     LocalTrajData *info = &planner_manager_->local_data_;
+>     double t_cur = (ros::Time::now() - info->start_time_).toSec();
+> 
+>     // Replan if traj is almost fully executed
+>     double time_to_end = info->duration_ - t_cur;
+>     // if (info->need_spiral_ == true && time_to_end < fp_->replan_thresh2_) {
+>     //   ROS_WARN("Replan: prepare to spiral");
+>     //   transitState(SPIRAL, "FSM");
+>     // }
+> 
+>     bool need_replan = false;
+>     if (time_to_end < fp_->replan_thresh1_) {
+>       ROS_WARN("Replan: traj fully executed");
+>       need_replan = true;
+>     }
+>     // Replan if next frontier to be visited is covered
+>     if (t_cur > fp_->replan_thresh2_ &&
+>         expl_manager_->frontier_finder_->isFrontierCovered()) {
+>       ROS_WARN("Replan: cluster covered");
+>       need_replan = true;
+>     }
+> 
+>     // Replan after some time
+>     if (t_cur > fp_->replan_thresh3_) {
+>       ROS_WARN("Replan: periodic call");
+>       need_replan = true;
+>     }
+> 
+>     // if (need_replan) {
+>     //   if (expl_manager_->updateFrontierStruct(fd_->odom_pos_) != 0) {
+> 
+>     //     transitState(PLAN_TRAJ, "FSM");
+>     //   } else {
+>     //     transitState(FINISH, "FSM");
+>     //     ROS_WARN("[FSM] Finish exploration: No frontier detected");
+>     //     fd_->static_state_ = true;
+>     //     replan_pub_.publish(std_msgs::Empty());
+>     //   }
+>     // }
+>     if (need_replan) {
+>       // visualize();
+>       transitState(PLAN_TRAJ, "FSM");
+>     }
+> 
+>     break;
+>   }
+>   }
+> 
+>   thread vis_thread(&FastExplorationFSM::visualize, this);
+>   vis_thread.detach();
+>   start_flag_pub.publish(state_flag);
+>   // std::cout<<"The State of the drone is: "<<state_flag.data<<endl;
+158,159c228,234
+<   int res = expl_manager_->planExploreMotion(fd_->start_pt_, fd_->start_vel_, fd_->start_acc_,
+<                                              fd_->start_yaw_);
+---
+>   // int res = expl_manager_->planExploreMotion(fd_->start_pt_, fd_->start_vel_,
+>   //                                            fd_->start_acc_,
+>   //                                            fd_->start_yaw_);
+>   int res = expl_manager_->planExploreMotionCluster(
+>       fd_->start_pt_, fd_->start_vel_, fd_->start_acc_, fd_->start_yaw_);
+>   // int res = expl_manager_->planExploreMotionHGrid(
+>   //     fd_->start_pt_, fd_->start_vel_, fd_->start_acc_, fd_->start_yaw_);
+162,163c237,238
+<   // int res = expl_manager_->classicFrontier(fd_->start_pt_, fd_->start_yaw_[0]);
+<   // classic_ = true;
+---
+>   // int res = expl_manager_->classicFrontier(fd_->start_pt_,
+>   // fd_->start_yaw_[0]); classic_ = true;
+165,166c240,241
+<   // int res = expl_manager_->rapidFrontier(fd_->start_pt_, fd_->start_vel_, fd_->start_yaw_[0],
+<   // classic_);
+---
+>   // int res = expl_manager_->rapidFrontier(fd_->start_pt_, fd_->start_vel_,
+>   // fd_->start_yaw_[0], classic_);
+170c245,246
+<     info->start_time_ = (ros::Time::now() - time_r).toSec() > 0 ? ros::Time::now() : time_r;
+---
+>     info->start_time_ =
+>         (ros::Time::now() - time_r).toSec() > 0 ? ros::Time::now() : time_r;
+202a279
+>   auto ft = expl_manager_->frontier_finder_;
+204,208c281,303
+<   // Draw updated box
+<   // Vector3d bmin, bmax;
+<   // planner_manager_->edt_environment_->sdf_map_->getUpdatedBox(bmin, bmax);
+<   // visualization_->drawBox((bmin + bmax) / 2.0, bmax - bmin, Vector4d(0, 1, 0, 0.3), "updated_box", 0,
+<   // 4);
+---
+>   visualization_->drawLines(ed_ptr->local_tour_vis_, 0.1,
+>                             PlanningVisualization::Color::Red(), "local_tour",
+>                             0, PlanningVisualization::PUBLISHER::HGRID);
+>   visualization_->drawLines(
+>       ed_ptr->grid_tour_, 0.1, PlanningVisualization::Color::Purple(),
+>       "global_tour", 0, PlanningVisualization::PUBLISHER::HGRID);
+>   // visualization_->drawLines(
+>   //     ed_ptr->inertia_tour_, 0.1, PlanningVisualization::Color::DeepGreen(),
+>   //     "inertial_tour", 0, PlanningVisualization::PUBLISHER::HGRID);
+>   // Draw a line from frontier top view point with its view direction
+>   ed_ptr->views_.clear();
+>   for (int i = 0; i < ed_ptr->points_.size(); ++i)
+>     ed_ptr->views_.push_back(
+>         ed_ptr->points_[i] +
+>         2.0 * Vector3d(cos(ed_ptr->yaws_[i]), sin(ed_ptr->yaws_[i]), 0));
+> 
+>   visualization_->drawLines(ed_ptr->points_, ed_ptr->views_, 0.05,
+>                             PlanningVisualization::Color::SpringGreen(),
+>                             "frontier_view", 0,
+>                             PlanningVisualization::PUBLISHER::VIEWPOINT);
+>   visualization_->drawBspline(info->position_traj_, 0.1,
+>                               Vector4d(1.0, 0.0, 0.0, 1), false, 0.15,
+>                               Vector4d(1, 1, 0, 1));
+210,211c305,318
+<   // Draw frontier
+<   static int last_ftr_num = 0;
+---
+>   vector<vector<Eigen::Vector3d>> frontier_division;
+>   ft->getFrontierDivision(frontier_division);
+>   for (int i = 0; i < frontier_division.size(); i++) {
+>     Eigen::Vector4d color =
+>         visualization_->getColor(double(i) / frontier_division.size(), 1.0);
+>     visualization_->drawLines({}, 0.2, color, "frt_division", i,
+>                               PlanningVisualization::PUBLISHER::VIEWPOINT);
+> 
+>     visualization_->drawSpheres(frontier_division[i], 0.2, color,
+>                                 "frt_division", i,
+>                                 PlanningVisualization::PUBLISHER::VIEWPOINT);
+>   }
+> 
+>   int frts_pts_num = 0;
+213,262c320,348
+<     visualization_->drawCubes(ed_ptr->frontiers_[i], 0.1,
+<                               visualization_->getColor(double(i) / ed_ptr->frontiers_.size(), 0.4),
+<                               "frontier", i, 4);
+<     // visualization_->drawBox(ed_ptr->frontier_boxes_[i].first, ed_ptr->frontier_boxes_[i].second,
+<     //                         Vector4d(0.5, 0, 1, 0.3), "frontier_boxes", i, 4);
+<   }
+<   for (int i = ed_ptr->frontiers_.size(); i < last_ftr_num; ++i) {
+<     visualization_->drawCubes({}, 0.1, Vector4d(0, 0, 0, 1), "frontier", i, 4);
+<     // visualization_->drawBox(Vector3d(0, 0, 0), Vector3d(0, 0, 0), Vector4d(1, 0, 0, 0.3),
+<     // "frontier_boxes", i, 4);
+<   }
+<   last_ftr_num = ed_ptr->frontiers_.size();
+<   // for (int i = 0; i < ed_ptr->dead_frontiers_.size(); ++i)
+<   //   visualization_->drawCubes(ed_ptr->dead_frontiers_[i], 0.1, Vector4d(0, 0, 0, 0.5), "dead_frontier",
+<   //                             i, 4);
+<   // for (int i = ed_ptr->dead_frontiers_.size(); i < 5; ++i)
+<   //   visualization_->drawCubes({}, 0.1, Vector4d(0, 0, 0, 0.5), "dead_frontier", i, 4);
+< 
+<   // Draw global top viewpoints info
+<   // visualization_->drawSpheres(ed_ptr->points_, 0.2, Vector4d(0, 0.5, 0, 1), "points", 0, 6);
+<   // visualization_->drawLines(ed_ptr->global_tour_, 0.07, Vector4d(0, 0.5, 0, 1), "global_tour", 0, 6);
+<   // visualization_->drawLines(ed_ptr->points_, ed_ptr->views_, 0.05, Vector4d(0, 1, 0.5, 1), "view", 0, 6);
+<   // visualization_->drawLines(ed_ptr->points_, ed_ptr->averages_, 0.03, Vector4d(1, 0, 0, 1),
+<   // "point-average", 0, 6);
+< 
+<   // Draw local refined viewpoints info
+<   // visualization_->drawSpheres(ed_ptr->refined_points_, 0.2, Vector4d(0, 0, 1, 1), "refined_pts", 0, 6);
+<   // visualization_->drawLines(ed_ptr->refined_points_, ed_ptr->refined_views_, 0.05,
+<   //                           Vector4d(0.5, 0, 1, 1), "refined_view", 0, 6);
+<   // visualization_->drawLines(ed_ptr->refined_tour_, 0.07, Vector4d(0, 0, 1, 1), "refined_tour", 0, 6);
+<   // visualization_->drawLines(ed_ptr->refined_views1_, ed_ptr->refined_views2_, 0.04, Vector4d(0, 0, 0,
+<   // 1),
+<   //                           "refined_view", 0, 6);
+<   // visualization_->drawLines(ed_ptr->refined_points_, ed_ptr->unrefined_points_, 0.05, Vector4d(1, 1,
+<   // 0, 1),
+<   //                           "refine_pair", 0, 6);
+<   // for (int i = 0; i < ed_ptr->n_points_.size(); ++i)
+<   //   visualization_->drawSpheres(ed_ptr->n_points_[i], 0.1,
+<   //                               visualization_->getColor(double(ed_ptr->refined_ids_[i]) /
+<   //                               ed_ptr->frontiers_.size()),
+<   //                               "n_points", i, 6);
+<   // for (int i = ed_ptr->n_points_.size(); i < 15; ++i)
+<   //   visualization_->drawSpheres({}, 0.1, Vector4d(0, 0, 0, 1), "n_points", i, 6);
+< 
+<   // Draw trajectory
+<   // visualization_->drawSpheres({ ed_ptr->next_goal_ }, 0.3, Vector4d(0, 1, 1, 1), "next_goal", 0, 6);
+<   visualization_->drawBspline(info->position_traj_, 0.1, Vector4d(1.0, 0.0, 0.0, 1), false, 0.15,
+<                               Vector4d(1, 1, 0, 1));
+<   // visualization_->drawSpheres(plan_data->kino_path_, 0.1, Vector4d(1, 0, 1, 1), "kino_path", 0, 0);
+<   // visualization_->drawLines(ed_ptr->path_next_goal_, 0.05, Vector4d(0, 1, 1, 1), "next_goal", 1, 6);
+---
+>     frts_pts_num += ed_ptr->frontiers_[i].size();
+>   }
+>   pcl::PointCloud<pcl::PointXYZRGBA> cloud;
+>   cloud.width = frts_pts_num;
+>   cloud.height = 1;
+>   cloud.is_dense = true;
+>   cloud.header.frame_id = "world";
+>   int i = 0;
+>   for (auto ft : ed_ptr->frontiers_) {
+>     i++;
+>     int j = 0;
+>     while (j < ft.size()) {
+>       pcl::PointXYZRGBA pt;
+>       Eigen::Vector4d color =
+>           visualization_->getColor(2 / ed_ptr->frontiers_.size(), 0.3);
+>       pt.x = ft[j].x();
+>       pt.y = ft[j].y();
+>       pt.z = ft[j].z();
+>       pt.r = color(0) * 255;
+>       pt.g = color(1) * 255;
+>       pt.b = color(2) * 255;
+>       pt.a = 50;
+>       cloud.push_back(pt);
+>       j++;
+>     }
+>   }
+>   sensor_msgs::PointCloud2::Ptr cloud_msg(new sensor_msgs::PointCloud2);
+>   pcl::toROSMsg(cloud, *cloud_msg);
+>   visualization_->frts_pub_.publish(cloud_msg);
+266,271c352,359
+<   // visualization_->drawSpheres({}, 0.2, Vector4d(0, 0.5, 0, 1), "points", 0, 6);
+<   // visualization_->drawLines({}, 0.07, Vector4d(0, 0.5, 0, 1), "global_tour", 0, 6);
+<   // visualization_->drawSpheres({}, 0.2, Vector4d(0, 0, 1, 1), "refined_pts", 0, 6);
+<   // visualization_->drawLines({}, {}, 0.05, Vector4d(0.5, 0, 1, 1), "refined_view", 0, 6);
+<   // visualization_->drawLines({}, 0.07, Vector4d(0, 0, 1, 1), "refined_tour", 0, 6);
+<   // visualization_->drawSpheres({}, 0.1, Vector4d(0, 0, 1, 1), "B-Spline", 0, 0);
+---
+>   // visualization_->drawSpheres({}, 0.2, Vector4d(0, 0.5, 0, 1), "points", 0,
+>   // 6); visualization_->drawLines({}, 0.07, Vector4d(0, 0.5, 0, 1),
+>   // "global_tour", 0, 6); visualization_->drawSpheres({}, 0.2, Vector4d(0, 0,
+>   // 1, 1), "refined_pts", 0, 6); visualization_->drawLines({}, {}, 0.05,
+>   // Vector4d(0.5, 0, 1, 1), "refined_view", 0, 6);
+>   // visualization_->drawLines({}, 0.07, Vector4d(0, 0, 1, 1), "refined_tour",
+>   // 0, 6); visualization_->drawSpheres({}, 0.1, Vector4d(0, 0, 1, 1),
+>   // "B-Spline", 0, 0);
+273c361,362
+<   // visualization_->drawLines({}, {}, 0.03, Vector4d(1, 0, 0, 1), "current_pose", 0, 6);
+---
+>   // visualization_->drawLines({}, {}, 0.03, Vector4d(1, 0, 0, 1),
+>   // "current_pose", 0, 6);
+276c365
+< void FastExplorationFSM::frontierCallback(const ros::TimerEvent& e) {
+---
+> void FastExplorationFSM::frontierCallback(const ros::TimerEvent &e) {
+278c367,368
+<   if (++delay < 5) return;
+---
+>   if (++delay < 5)
+>     return;
+283,305c373,425
+<     bool neighbor = false;
+<     ft->searchFrontiers(fd_->odom_pos_);
+<     ft->computeFrontiersToVisit(fd_->odom_pos_);
+<     ft->clusterFrontiers(fd_->odom_pos_, neighbor);
+<     ft->updateFrontierCostMatrix();
+< 
+<     ft->getFrontiers(ed->frontiers_);
+<     ft->getFrontierBoxes(ed->frontier_boxes_);
+< 
+<     // Draw frontier and bounding box
+<     for (int i = 0; i < ed->frontiers_.size(); ++i) {
+<       visualization_->drawCubes(ed->frontiers_[i], 0.1,
+<                                 visualization_->getColor(double(i) / ed->frontiers_.size(), 0.4),
+<                                 "frontier", i, 4);
+<       // visualization_->drawBox(ed->frontier_boxes_[i].first, ed->frontier_boxes_[i].second,
+<       // Vector4d(0.5, 0, 1, 0.3),
+<       //                         "frontier_boxes", i, 4);
+<     }
+<     for (int i = ed->frontiers_.size(); i < 50; ++i) {
+<       visualization_->drawCubes({}, 0.1, Vector4d(0, 0, 0, 1), "frontier", i, 4);
+<       // visualization_->drawBox(Vector3d(0, 0, 0), Vector3d(0, 0, 0), Vector4d(1, 0, 0, 0.3),
+<       // "frontier_boxes", i, 4);
+<     }
+---
+>     // Eigen::Vector3d debug_update_min, debug_update_max;
+>     // ft->edt_env_->sdf_map_->getUpdatedBox(debug_update_min, debug_update_max,
+>     //                                       false);
+>     bool neighbor;
+>     ft->searchFrontiers(fd_->start_pt_);
+>     ft->computeFrontiersToVisit(fd_->start_pt_);
+>     // ft->updateFrontierCostMatrix();
+>     ft->clusterFrontiers(fd_->start_pt_, neighbor);
+>     ft->getFrontiers(expl_manager_->ed_->frontiers_);
+>     ft->getDormantFrontiers(expl_manager_->ed_->dead_frontiers_);
+>     ft->getFrontierBoxes(expl_manager_->ed_->frontier_boxes_);
+> 
+>     ft->getTopViewpointsInfo(fd_->odom_pos_, expl_manager_->ed_->points_,
+>                              expl_manager_->ed_->yaws_,
+>                              expl_manager_->ed_->averages_);
+> 
+>     expl_manager_->ed_->views_.clear();
+>     for (int i = 0; i < expl_manager_->ed_->points_.size(); ++i)
+>       expl_manager_->ed_->views_.push_back(
+>           expl_manager_->ed_->points_[i] +
+>           2.0 * Vector3d(cos(expl_manager_->ed_->yaws_[i]),
+>                          sin(expl_manager_->ed_->yaws_[i]), 0));
+>     visualization_->drawLines(
+>         expl_manager_->ed_->points_, expl_manager_->ed_->views_, 0.05,
+>         PlanningVisualization::Color::SpringGreen(), "frontier_view", 0,
+>         PlanningVisualization::PUBLISHER::VIEWPOINT);
+>     // int frts_pts_num = 0, i = 0;
+>     // pcl::PointCloud<pcl::PointXYZRGBA> cloud;
+>     // for (auto ft : ed->frontiers_) {
+>     //   int j = 0;
+>     //   while (j < ft.size()) {
+>     //     pcl::PointXYZRGBA pt;
+>     //     Eigen::Vector4d color =
+>     //         visualization_->getColor(double(i) / ed->frontiers_.size(), 0.3);
+>     //     pt.x = ft[j].x();
+>     //     pt.y = ft[j].y();
+>     //     pt.z = ft[j].z();
+>     //     pt.r = color(0) * 255;
+>     //     pt.g = color(1) * 255;
+>     //     pt.b = color(2) * 255;
+>     //     pt.a = 50;
+>     //     cloud.push_back(pt);
+>     //     j++;
+>     //     frts_pts_num++;
+>     //   }
+>     //   i++;
+>     // }
+>     // cloud.width = frts_pts_num;
+>     // cloud.height = 1;
+>     // cloud.is_dense = true;
+>     // cloud.header.frame_id = "world";
+>     // sensor_msgs::PointCloud2::Ptr cloud_msg(new sensor_msgs::PointCloud2);
+>     // pcl::toROSMsg(cloud, *cloud_msg);
+307,326d426
+< 
+<   // if (!fd_->static_state_)
+<   // {
+<   //   static double astar_time = 0.0;
+<   //   static int astar_num = 0;
+<   //   auto t1 = ros::Time::now();
+< 
+<   //   planner_manager_->path_finder_->reset();
+<   //   planner_manager_->path_finder_->setResolution(0.4);
+<   //   if (planner_manager_->path_finder_->search(fd_->odom_pos_, Vector3d(-5, 0, 1)))
+<   //   {
+<   //     auto path = planner_manager_->path_finder_->getPath();
+<   //     visualization_->drawLines(path, 0.05, Vector4d(1, 0, 0, 1), "astar", 0, 6);
+<   //     auto visit = planner_manager_->path_finder_->getVisited();
+<   //     visualization_->drawCubes(visit, 0.3, Vector4d(0, 0, 1, 0.4), "astar-visit", 0, 6);
+<   //   }
+<   //   astar_num += 1;
+<   //   astar_time = (ros::Time::now() - t1).toSec();
+<   //   ROS_WARN("Average astar time: %lf", astar_time);
+<   // }
+329,331c429,433
+< void FastExplorationFSM::triggerCallback(const nav_msgs::PathConstPtr& msg) {
+<   if (msg->poses[0].pose.position.z < -0.1) return;
+<   if (state_ != WAIT_TRIGGER) return;
+---
+> void FastExplorationFSM::triggerCallback(const nav_msgs::PathConstPtr &msg) {
+>   if (msg->poses[0].pose.position.z < -0.1)
+>     return;
+>   if (state_ != WAIT_TRIGGER)
+>     return;
+337c439
+< void FastExplorationFSM::safetyCallback(const ros::TimerEvent& e) {
+---
+> void FastExplorationFSM::safetyCallback(const ros::TimerEvent &e) {
+342a445
+>       fd_->static_state_ = true;
+349c452,453
+< void FastExplorationFSM::odometryCallback(const nav_msgs::OdometryConstPtr& msg) {
+---
+> void FastExplorationFSM::odometryCallback(
+>     const nav_msgs::OdometryConstPtr &msg) {
+363c467,468
+<   Eigen::Vector3d rot_x = fd_->odom_orient_.toRotationMatrix().block<3, 1>(0, 0);
+---
+>   Eigen::Vector3d rot_x =
+>       fd_->odom_orient_.toRotationMatrix().block<3, 1>(0, 0);
+372c477,478
+<   cout << "[" + pos_call + "]: from " + fd_->state_str_[pre_s] + " to " + fd_->state_str_[int(new_state)]
+---
+>   cout << "[" + pos_call + "]: from " + fd_->state_str_[pre_s] + " to " +
+>               fd_->state_str_[int(new_state)]
+375c481
+< }  // namespace fast_planner
+---
+> } // namespace fast_planner

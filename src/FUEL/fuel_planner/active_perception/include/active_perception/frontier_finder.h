@@ -139,6 +139,7 @@ public:
   void getClusterTour(const vector<int> indices, vector<Vector3d> &path);
   void getClusterCenter(vector<Vector3d> &centers);
   shared_ptr<PerceptionUtils> percep_utils_;
+  vector<FrontierCluster> frontier_clusters_;
 
 private:
   void splitLargeFrontiers(vector<Frontier> &frontiers);
@@ -196,7 +197,7 @@ private:
   int first_new_frt_;
   int frts_num_after_remove_;
   Frontier next_frontier_;
-  vector<FrontierCluster> frontier_clusters_;
+  
   vector<checkPoint> check_tour;
 
   // Params

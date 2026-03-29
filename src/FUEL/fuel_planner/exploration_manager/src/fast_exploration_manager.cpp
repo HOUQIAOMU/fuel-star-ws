@@ -142,7 +142,7 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
     return NO_FRONTIER;
   }
   vector<vector<Eigen::Vector3d>> division_clusters;
-  frontier_finder_->getFrontierDivision(division_clusters);
+  frontier_finder_->getFrontierDivision(division_clusters); //分割后的frontier cluster
   Eigen::Vector3d next_cluster_pos;
   if (division_clusters.size() > 1) {
     findNextCluster(pos, vel, yaw, ed_->local_tour_, next_cluster_pos,
@@ -165,35 +165,36 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
   // Do global and local tour planning and retrieve the next viewpoint
   Vector3d next_pos;
   vector<double> next_yaw;
-  
-  //过滤已到达的viewpoint
-    const double arrived_thresh = 0.15;
-    auto filtered_tour = ed_->local_tour_;
-    ed_->local_tour_.erase(
-    std::remove_if(ed_->local_tour_.begin(), ed_->local_tour_.end(),
-    [&](const checkPoint& cp) {return (cp.pos_ - pos).norm() < arrived_thresh;}),
-    ed_->local_tour_.end());
-    if (ed_->local_tour_.empty()) return FAIL;
+  const double arrived_thresh = 0.15;
 
   if (ed_->local_tour_.size() > 1) {
     vector<int> indices;
-
-    // 在findLocalTour前加一个ROS_WARN，输出pos
-    ROS_WARN("[local_tour] size: %zu", ed_->local_tour_.size());
-    for (int i = 0; i < ed_->local_tour_.size(); i++) {
-      ROS_WARN("  [%d] pos: %.2f %.2f %.2f", i,
-      ed_->local_tour_[i].pos_.x(),
-      ed_->local_tour_[i].pos_.y(),
-      ed_->local_tour_[i].pos_.z());
-}
-
     findLocalTour(pos, vel, yaw, next_cluster_pos, indices);
-    if(indices.empty() || indices[0] >= ed_->local_tour_.size()) {
+    if (indices.empty() || indices[0] >= ed_->local_tour_.size()) {
       ROS_ERROR("Invalid local tour index");
       return FAIL;
     }
-    next_pos = ed_->local_tour_[indices[0]].pos_;
-    next_yaw = ed_->local_tour_[indices[0]].yaws_;
+
+    int next_index = -1;
+    for (const auto &tour_index : indices) {
+      if (tour_index < 0 || tour_index >= ed_->local_tour_.size())
+        continue;
+      if ((ed_->local_tour_[tour_index].pos_ - pos).norm() >= arrived_thresh) {
+        next_index = tour_index;
+        break;
+      }
+    }
+    if (next_index < 0) {
+      ROS_WARN("All local viewpoints are within arrived threshold, force frontier update");
+      frontier_finder_->searchFrontiers(pos);
+      frontier_finder_->computeFrontiersToVisit(pos);
+      bool neighbor;
+      frontier_finder_->clusterFrontiers(pos, neighbor);
+      return FAIL;
+    }
+
+    next_pos = ed_->local_tour_[next_index].pos_;
+    next_yaw = ed_->local_tour_[next_index].yaws_;
     ed_->local_tour_vis_.clear();
     ed_->local_tour_vis_.push_back(pos);
     for (int i = 0; i < indices.size() - 1; i++) {
@@ -201,6 +202,14 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
     }
     ed_->local_tour_vis_.push_back(next_cluster_pos);
   } else if (ed_->local_tour_.size() == 1) {
+    if ((ed_->local_tour_[0].pos_ - pos).norm() < arrived_thresh) {
+      ROS_WARN("Single local viewpoint already reached, force frontier update");
+      frontier_finder_->searchFrontiers(pos);
+      frontier_finder_->computeFrontiersToVisit(pos);
+      bool neighbor;
+      frontier_finder_->clusterFrontiers(pos, neighbor);
+      return FAIL;
+    }
     next_pos = ed_->local_tour_[0].pos_;
     next_yaw = ed_->local_tour_[0].yaws_;
     ed_->local_tour_vis_.clear();
@@ -240,37 +249,6 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
   const double radius_far = 5.0;
   const double radius_close = 1.5;
   const double len = Astar::pathLength(ed_->path_next_goal_);
-  //---------------新加：添加距离判断----------------//
-  
-  if (len < arrived_thresh) {
-    ROS_WARN("path too short, replanning");
-    return FAIL;
-    // ROS_WARN("Already at viewpoint, force frontier update");
-    // frontier_finder_->searchFrontiers(pos);
-    // frontier_finder_->computeFrontiersToVisit(pos);
-    // bool neighbor;
-    // frontier_finder_->clusterFrontiers(pos, neighbor);
-    // // 不return FAIL，继续执行，让下面的规划选择新的viewpoint
-    // // 但需要重新获得local_tour
-    // findNextCluster(pos,vel,yaw,ed_->local_tour_,next_cluster_pos,neighbor);
-    // if(ed_->local_tour_.empty()) return FAIL;
-    // // 过滤掉当前位置附近的viewpoint
-    // while(!ed_->local_tour_.empty() && (ed_->local_tour_[0].pos_ - pos).norm() < arrived_thresh) {
-    //   ed_->local_tour_.erase(ed_->local_tour_.begin());
-    // }
-    // if(ed_->local_tour_.empty()) return FAIL;
-    // //重新路径规划到下一个viewpoint
-    // next_pos = ed_->local_tour_[0].pos_;
-    // next_yaw = ed_->local_tour_[0].yaws_;
-    // planner_manager_->path_finder_->reset();
-    // if(planner_manager_->path_finder_->search(pos, next_pos) != Astar::REACH_END) {
-    //   ROS_ERROR("No path to next viewpoint");
-    //   return FAIL;
-    // }
-    // ed_->path_next_goal_ = planner_manager_->path_finder_->getPath();
-    // shortenPath(ed_->path_next_goal_);
-  }
-  //---------------------------------------------//
 
   double yaw_time_lb = min(diff, 2 * M_PI - diff) / ViewNode::yd_;
   double pos_time_lb = len / ViewNode::vm_;

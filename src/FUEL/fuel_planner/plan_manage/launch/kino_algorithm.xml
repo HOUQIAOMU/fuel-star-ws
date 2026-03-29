@@ -125,15 +125,15 @@
     <param name="search/check_num" value="10" type="int"/>
 
   <!-- trajectory optimization -->
-    <param name="optimization/ld_smooth" value="5.0" type="double"/>
+    <param name="optimization/ld_smooth" value="15.0" type="double"/>
     <param name="optimization/ld_dist" value="10.0" type="double"/>
     <param name="optimization/ld_feasi" value="1.0" type="double"/>
     <param name="optimization/ld_start" value="10.0" type="double"/>
     <param name="optimization/ld_end" value="10.0" type="double"/>
     <param name="optimization/ld_guide" value="1.5" type="double"/>
     <param name="optimization/ld_waypt" value="20.0" type="double"/>
-    <param name="optimization/ld_view" value="0.0" type="double"/>
-    <param name="optimization/ld_time" value="0.1" type="double"/>
+    <param name="optimization/ld_view" value="5.0" type="double"/>
+    <param name="optimization/ld_time" value="0.05" type="double"/>
     <param name="optimization/dist0" value="0.4" type="double"/>
     <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
     <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>

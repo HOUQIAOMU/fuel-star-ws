@@ -63,7 +63,7 @@ public:
   std::vector<Eigen::Vector3d> getVisited();
   double getEarlyTerminateCost();
 
-  double lambda_heu_;
+  double lambda_heu_; 
   double max_search_time_;
   double max_search_time_unknown_;
 

@@ -355,8 +355,10 @@ FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/explor
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/exploration_node.cpp.o: /usr/include/eigen3/Eigen/src/plugins/MatrixCwiseUnaryOps.h
 
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/devel/include/bspline/Bspline.h
+FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/frontier_finder.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/heading_planner.h
+FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/perception_utils.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/traj_visibility.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/bspline/include/bspline/non_uniform_bspline.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/bspline_opt/include/bspline_opt/bspline_optimizer.h
@@ -370,6 +372,7 @@ FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_e
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/path_searching/include/path_searching/topo_prm.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include/plan_env/edt_environment.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include/plan_env/obj_predictor.h
+FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include/plan_env/raycast.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_env/include/plan_env/sdf_map.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_manage/include/plan_manage/plan_container.hpp
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_manage/include/plan_manage/planner_manager.h
@@ -452,6 +455,7 @@ FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_e
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /opt/ros/noetic/include/std_msgs/ColorRGBA.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /opt/ros/noetic/include/std_msgs/Empty.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /opt/ros/noetic/include/std_msgs/Header.h
+FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /opt/ros/noetic/include/std_msgs/Int32.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /opt/ros/noetic/include/visualization_msgs/Marker.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /opt/ros/noetic/include/visualization_msgs/MarkerArray.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /opt/ros/noetic/include/xmlrpcpp/XmlRpcDecl.h
@@ -817,6 +821,7 @@ FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_e
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_fsm.cpp.o: /usr/include/pcl-1.10/pcl/search/search.h
 
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/devel/include/bspline/Bspline.h
+FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/frontier_finder.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/graph_node.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/active_perception/include/active_perception/graph_search.h
@@ -839,6 +844,7 @@ FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_e
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_manage/include/plan_manage/plan_container.hpp
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/plan_manage/include/plan_manage/planner_manager.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/poly_traj/include/poly_traj/polynomial_traj.h
+FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/traj_utils/include/traj_utils/planning_visualization.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/utils/lkh_tsp_solver/include/GainType.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/utils/lkh_tsp_solver/include/Genetic.h
 FUEL/fuel_planner/exploration_manager/CMakeFiles/exploration_node.dir/src/fast_exploration_manager.cpp.o: /home/jacob/fuel_star_ws/src/FUEL/fuel_planner/utils/lkh_tsp_solver/include/Hashing.h

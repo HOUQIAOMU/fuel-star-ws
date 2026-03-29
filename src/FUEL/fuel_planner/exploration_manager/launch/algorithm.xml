@@ -22,6 +22,7 @@
 
   <arg name="max_vel"/>
   <arg name="max_acc"/>
+  <arg name="max_yaw_change" />
 
   <!-- main node -->
   <node pkg="exploration_manager" name="exploration_node" type="exploration_node" output="screen">
@@ -87,31 +88,38 @@
 
     <!-- Exploration manager -->
 
-    <param name="exploration/refine_local" value="true" type="bool"/>
-    <param name="exploration/refined_num" value="7" type="int"/>
-    <param name="exploration/refined_radius" value="5.0" type="double"/>
-    <param name="exploration/max_decay" value="0.8" type="double"/>
-    <param name="exploration/top_view_num" value="15" type="int"/>
-    <param name="exploration/vm" value="$(eval 1.0 * arg('max_vel'))" type="double"/>
-    <param name="exploration/am" value="$(eval 1.0 * arg('max_acc'))" type="double"/>
-    <param name="exploration/yd" value="$(eval 60 * 3.1415926 / 180.0)" type="double"/>
-    <param name="exploration/ydd" value="$(eval 90 * 3.1415926 / 180.0)" type="double"/>
-    <param name="exploration/w_dir" value="1.5" type="double"/>
-    <param name="exploration/tsp_dir" value="$(find lkh_tsp_solver)/resource" type="string"/>
-    <param name="exploration/relax_time" value="1.0" type="double"/>
+    <param name="exploration/refine_local" value="true" type="bool" />
+    <param name="exploration/refined_num" value="1" type="int" />
+    <param name="exploration/refined_radius" value="5.0" type="double" />
+    <param name="exploration/max_decay" value="0.8" type="double" />
+    <param name="exploration/top_view_num" value="1" type="int" />
+    <param name="exploration/vm" value="$(eval 1.0 * arg('max_vel'))" type="double" />
+    <param name="exploration/am" value="$(eval 1.0 * arg('max_acc'))" type="double" />
+    <param name="exploration/yd" value="$(arg max_yaw_change)" type="double" />
+    <param name="exploration/ydd" value="$(eval 30 * 3.1415926 / 180.0)" type="double" />
+    <param name="exploration/w_dir" value="1.5" type="double" />
+    <param name="exploration/tsp_dir" value="$(find lkh_tsp_solver)/resource" type="string" />
+    <param name="exploration/relax_time" value="1.0" type="double" />
+    <param name="exploration/alc_cp_search_range" value="10" type="int" />
+    <param name="exploration/alc_cost_scale" value="-1.0" type="double" />
+    <!--param name="exploration/perception_aware_local" value="$(arg use_perception_aware_local_planner)" type="bool" /-->
+    <param name="exploration/feature_max_dist" value="2.0" type="double" />
+    <param name="exploration/inertial_cost_offset" value="5.0" type="double" />
 
     <param name="frontier/cluster_min" value="100" type="int"/>
     <param name="frontier/cluster_size_xy" value="2.0" type="double"/>
     <param name="frontier/cluster_size_z" value="10.0" type="double"/>
     <param name="frontier/min_candidate_dist" value="0.75" type="double"/>
-    <param name="frontier/min_candidate_clearance" value="0.21" type="double"/>
-    <param name="frontier/candidate_dphi" value="$(eval 15 * 3.1415926 / 180.0)" type="double"/>
+    <param name="frontier/min_candidate_clearance" value="0.3" type="double"/>
+    <param name="frontier/candidate_dphi" value="$(eval 20 * 3.1415926 / 180.0)" type="double"/>
     <param name="frontier/candidate_rnum" value="3" type="int"/>
-    <param name="frontier/candidate_rmin" value="1.5" type="double"/>
-    <param name="frontier/candidate_rmax" value="2.5" type="double"/>
-    <param name="frontier/down_sample" value="3" type="int"/>;
-    <param name="frontier/min_visib_num" value="15" type="int"/>;
+    <param name="frontier/candidate_rmin" value="2.0" type="double"/>
+    <param name="frontier/candidate_rmax" value="3.0" type="double"/>
+    <param name="frontier/down_sample" value="2" type="int"/>;
+    <param name="frontier/min_visib_num" value="60" type="int"/>;
     <param name="frontier/min_view_finish_fraction" value="0.2" type="double"/>;
+    <param name="frontier/tsp_dir" value="$(find lkh_tsp_solver)/resource" type="string" />
+    <param name="frontier/frt_cluster_radius" value="3.0" type="double" />
 
     <!-- Perception utils -->
     <param name="perception_utils/top_angle" value="0.56125" type="double"/>;
@@ -125,7 +133,7 @@
     <param name="heading_planner/half_vert_num" value="5" type="int"/>
     <param name="heading_planner/lambda1" value="2.0" type="double"/>
     <param name="heading_planner/lambda2" value="1.0" type="double"/>
-    <param name="heading_planner/max_yaw_rate" value="$(eval 10 * 3.1415926 / 180.0)" type="double"/>
+    <param name="heading_planner/max_yaw_rate" value="$(eval 5 * 3.1415926 / 180.0)" type="double"/>
     <param name="heading_planner/w" value="20000.0" type="double"/>
     <param name="heading_planner/weight_type" value="1" type="double"/>
 
@@ -165,6 +173,7 @@
     <param name="astar/resolution_astar" value="0.2" type="double"/>
     <param name="astar/allocate_num" value="1000000" type="int"/>
     <param name="astar/max_search_time" value="0.001" type="double"/>
+    <param name="astar/max_search_time_unknown" value="0.0001" type="double" />
 
   <!-- trajectory optimization -->
     <param name="optimization/ld_smooth" value="20.0" type="double"/>
@@ -176,9 +185,11 @@
     <param name="optimization/ld_waypt" value="0.3" type="double"/>
     <param name="optimization/ld_view" value="0.0" type="double"/>
     <param name="optimization/ld_time" value="1.0" type="double"/>
+    <param name="optimization/ld_yaw_feasi" value="0.0" type="double" />
     <param name="optimization/dist0" value="0.7" type="double"/>
     <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
     <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>
+    <param name="optimization/max_yaw_change" value="$(arg max_yaw_change)" type="double" />
     <param name="optimization/algorithm1" value="15" type="int"/>
     <param name="optimization/algorithm2" value="11" type="int"/>
     <param name="optimization/max_iteration_num1" value="2" type="int"/>

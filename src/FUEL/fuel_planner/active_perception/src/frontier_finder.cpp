@@ -711,7 +711,7 @@ bool FrontierFinder::isFrontierChanged(const Frontier &ft) {
   //   thresh = ft.cells_.size() * 0.08;
   // }
 
-  thresh = ft.cells_.size() * 0.05;
+  thresh = ft.cells_.size() * 0.2;
 
   for (auto cell : ft.cells_) {
     Eigen::Vector3i idx;
@@ -724,8 +724,7 @@ bool FrontierFinder::isFrontierChanged(const Frontier &ft) {
     //     !(knownfree(idx) && isNeighborUnderObserved(idx))) {
     //   change_num++;
     // }
-    if (!(knownfree(idx) && isNeighborUnderObserved(idx)) &&
-        !(knownfree(idx) && isNeighborUnknown(idx))) {
+    if (!(knownfree(idx) && isNeighborUnknown(idx))) {
       change_num++;
     }
 
@@ -1348,6 +1347,16 @@ int FrontierFinder::getFrontierClusterNum() {
 bool FrontierFinder::isFrontierCovered() {
   Vector3d update_min, update_max;
   edt_env_->sdf_map_->getUpdatedBox(update_min, update_max, false);
+  ROS_WARN("[isFrontierCovered] update box: %.2f %.2f %.2f -> %.2f %.2f %.2f",
+      update_min.x(), update_min.y(), update_min.z(),
+      update_max.x(), update_max.y(), update_max.z());
+  ROS_WARN("[isFrontierCovered] frontier num: %zu", frontiers_.size());
+  // for (auto ftr : frontiers_) {
+  //   ROS_WARN("  ftr box: %.2f %.2f -> %.2f %.2f, overlap: %d",
+  //       ftr.box_min_.x(), ftr.box_min_.y(),
+  //       ftr.box_max_.x(), ftr.box_max_.y(),
+  //       haveOverlap(ftr.box_min_, ftr.box_max_, update_min, update_max));
+  //   }
 
   auto checkChanges = [&](const vector<Frontier> &frontiers) {
     for (auto ftr : frontiers) {
@@ -1358,8 +1367,7 @@ bool FrontierFinder::isFrontierCovered() {
       for (auto cell : ftr.cells_) {
         Eigen::Vector3i idx;
         edt_env_->sdf_map_->posToIndex(cell, idx);
-        if (!(knownfree(idx) &&
-              (isNeighborUnknown(idx) || isNeighborUnderObserved(idx))) &&
+        if (!(knownfree(idx)&&(isNeighborUnknown(idx))) && 
             ++change_num >= change_thresh)
           // if (!(knownfree(idx) && (isNeighborUnknown(idx))) &&
           //     ++change_num >= change_thresh)

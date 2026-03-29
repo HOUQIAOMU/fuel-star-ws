@@ -1,0 +1,229 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                                                                           ║
+║         Fuel vs Star-Searcher 快速探索管理器代码差异对比 - 文档清单       ║
+║                                                                           ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+生成时间: 2026-03-24
+源文件: fast_exploration_manager_diff.txt (945行)
+对比项目: Star-Searcher vs Fuel
+
+═══════════════════════════════════════════════════════════════════════════
+
+📚 完整文档体系
+
+┌─ 📌 导航文档
+│  └─ 00_README_Fuel_vs_StarSearcher.md
+│     用途: 总体导航，快速了解核心差异
+│     内容: 
+│       • 文档结构说明
+│       • 核心差异一览
+│       • 三大创新函数概述
+│       • 快速查询指南
+│       • 功能完整性评分
+│
+├─ 📋 完整对比报告
+│  └─ 快速探索管理器代码差异对比报告.md
+│     用途: 详细的10维度对比分析
+│     内容:
+│       1. Include头文件变化 (新增/移除)
+│       2. 构造函数改动 (格式规范化)
+│       3. initialize()函数改动 (7个参数 + 可视化 + TSP预处理)
+│       4. 核心算法函数改动 (重命名 + 内部逻辑重构)
+│       5. 数据结构差异 (多层路线表示)
+│       6. Frontier处理差异 (边界框 vs 聚类)
+│       7. 新增关键函数 (9个函数介绍)
+│       8. 代码风格改动 (参数格式、注释等)
+│       9. 性能优化相关改动 (调试日志等)
+│       10. 总体评估 (表格对比)
+│
+├─ 🔍 详细函数说明
+│  └─ 新增函数详细说明.md
+│     用途: 深入理解每个新增函数
+│     内容:
+│       【9个新增函数详解】
+│       1. shortenPath - 路径简化
+│          └─ void 输入:path 输出:修改path
+│       2. findNextCluster ⭐⭐⭐⭐⭐ - 聚类选择
+│          └─ void 输入:pos,vel,yaw,neighbor 输出:check_tour,next_pos
+│       3. findLocalTour - 本地TSP求解
+│          └─ void 输入:pos,vel,yaw,indices 输出:result_indices
+│       4. findGlobalTour - 全局TSP求解
+│          └─ void 输入:pos,vel,yaw 输出:result_indices
+│       5. updateFrontierStruct - Frontier更新
+│          └─ int 输入:pos 输出:SUCCEED/FAIL
+│       6. updateInertialTour ⭐⭐⭐⭐ - 惯性规划
+│          └─ void 输入:indices,centers 输出:inertia_cost
+│       7. solveTSP ⭐⭐⭐⭐⭐ - 通用求解器
+│          └─ void 输入:cost_matrix,config 输出:result_indices,total_cost
+│       8. clearExplorationData - 数据清空
+│          └─ void 无输入 无输出
+│       9. hausdorffDistance - 距离计算
+│          └─ double 输入:set1,set2 输出:indices
+│
+│       【修改的函数】
+│       • planExploreMotion → planExploreMotionCluster
+│       • initialize - 新增参数和功能
+│
+│       【附加内容】
+│       • 函数关系图 (调用关系可视化)
+│       • 函数调用流程 (两种场景)
+│       • 核心创新函数组合
+│
+└─ ⚡ 快速速查表
+   └─ 函数速查表.md
+      用途: 快速查询函数签名
+      内容:
+        • 快速概览表 (函数名/返回值/参数个数/重要性)
+        • 完整函数签名列表 (所有9个函数的完整签名)
+        • 数据类型速查 (Vector3d/MatrixXd/等)
+        • 函数使用场景 (规划循环示例)
+        • 核心创新函数组合 (3大创新组合)
+
+═══════════════════════════════════════════════════════════════════════════
+
+📊 关键统计数据
+
+【函数变化】
+  • 新增函数: 9个
+  • 重命名函数: 1个 (planExploreMotion → planExploreMotionCluster)
+  • 修改函数: 1个 (initialize)
+  • 总计变化: 11个
+
+【Include变化】
+  • 新增Include: 3个
+    - traj_utils/planning_visualization.h (可视化)
+    - exploration_manager/expl_data.h (数据结构)
+    - thread (多线程)
+  • Include重排序: 6个 (代码规范化)
+
+【参数扩展】
+  • 新增ROS参数: 7个
+    1. init_plan_num (int, 默认2)
+    2. alc_cp_search_range (double, 默认10)
+    3. enable_fixed_hgrid (bool, 默认false)
+    4. perception_aware_local (bool, 默认false)
+    5. feature_max_dist (double, 默认-1.0)
+    6. inertial_cost_offset (double, 默认-1.0)
+    7. verbose_active_loop (bool, 默认false)
+
+【TSP配置】
+  • 新增TSP配置文件生成: 3种
+    1. single_hgrid.par (网格TSP)
+    2. single_frontier.par (Frontier TSP)
+    3. cluster.par (聚类TSP)
+
+【数据结构】
+  • 新增路线表示: 3种
+    1. local_tour (局部路线)
+    2. grid_tour (栅格路线)
+    3. inertia_tour (惯性路线)
+
+【差异总量】
+  • 差异行数: 945行
+  • 分析深度: 10个维度
+
+═══════════════════════════════════════════════════════════════════════════
+
+🎯 三大核心创新函数
+
+【第一大创新】findNextCluster
+  复杂度: ⭐⭐⭐⭐⭐
+  意义: Fuel的核心算法创新 - 多聚类动态选择
+  输入参数:
+    - cur_pos (Vector3d) - 当前位置
+    - cur_vel (Vector3d) - 当前速度
+    - cur_yaw (Vector3d) - 当前偏航角
+    - neighbor (bool) - 是否考虑邻近聚类
+  输出参数:
+    - check_tour (vector<checkPoint>&) - 检查点路线
+    - next_cluster_pos (Eigen::Vector3d&) - 下一聚类位置
+  特点:
+    ✓ 支持两种选择策略 (惯性规划 + TSP优化)
+    ✓ 自动选择最低成本策略
+    ✓ 实现多聚类分层规划
+
+【第二大创新】updateInertialTour
+  复杂度: ⭐⭐⭐⭐
+  意义: Fuel独有的惯性路线规划
+  输入参数:
+    - indices (vector<int>) - 聚类索引
+    - cluster_centers (vector<Eigen::Vector3d>) - 聚类中心
+  输出参数:
+    - inertia_cost (double&) - 惯性成本
+  特点:
+    ✓ 考虑机器人运动连续性
+    ✓ 支持特征点距离阈值
+    ✓ 可调节成本偏移参数
+
+【第三大创新】solveTSP
+  复杂度: ⭐⭐⭐⭐
+  意义: 统一的TSP求解框架
+  输入参数:
+    - cost_matrix (Eigen::MatrixXd) - N×N成本矩阵
+    - config (TSPConfig) - 求解配置
+  输出参数:
+    - result_indices (vector<int>&) - 最优路线
+    - total_cost (double&) - 总成本
+  特点:
+    ✓ 灵活的配置系统
+    ✓ 自动文件管理 (.tsp→求解→.txt)
+    ✓ 支持多种问题类型
+
+═══════════════════════════════════════════════════════════════════════════
+
+🚀 使用建议
+
+【快速上手】(5分钟)
+  1. 打开 《00_README_Fuel_vs_StarSearcher.md》
+  2. 查看「核心差异一览」部分
+  3. 了解三大创新函数
+
+【深入学习】(15分钟)
+  1. 打开 《函数速查表.md》
+  2. 查看「完整函数签名列表」
+  3. 理解每个函数的输入输出
+
+【专业讨论】(30分钟)
+  1. 打开 《新增函数详细说明.md》
+  2. 阅读核心函数的详细实现说明
+  3. 查看函数关系图和调用流程
+
+【完整对比】(1小时)
+  1. 打开 《快速探索管理器代码差异对比报告.md》
+  2. 按顺序阅读10个维度的对比
+  3. 参考总体评估表格
+
+═══════════════════════════════════════════════════════════════════════════
+
+✨ 一句话总结
+
+Fuel是Star-Searcher的升级版本，通过引入聚类化架构、多层路线表示、
+惯性优化、完整可视化、7个新参数和统一TSP接口，将探索规划能力
+从单一全局规划升级到分层聚类规划。
+
+═══════════════════════════════════════════════════════════════════════════
+
+📂 文件位置
+
+所有文档保存在: /home/jacob/fuel_star_ws/summary/
+
+主要文件:
+  • 00_README_Fuel_vs_StarSearcher.md (导航文档)
+  • 快速探索管理器代码差异对比报告.md (完整对比)
+  • 新增函数详细说明.md (函数详解)
+  • 函数速查表.md (快速查询)
+  • 文档清单.txt (本文档)
+
+═══════════════════════════════════════════════════════════════════════════
+
+✅ 准备完毕
+
+所有文档已生成，您可以直接用于：
+  ✓ 技术对比讨论
+  ✓ 代码审查反馈
+  ✓ 项目文档编写
+  ✓ 团队知识共享
+  ✓ 系统集成参考
+
+═══════════════════════════════════════════════════════════════════════════
