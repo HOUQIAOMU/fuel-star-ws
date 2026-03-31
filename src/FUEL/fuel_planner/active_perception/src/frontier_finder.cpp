@@ -8,6 +8,7 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <plan_env/edt_environment.h>
+#include <sstream>
 
 // use PCL region growing segmentation
 // #include <pcl/point_types.h>
@@ -19,6 +20,18 @@
 #include <pcl/filters/voxel_grid.h>
 
 namespace fast_planner {
+namespace {
+std::string formatFrontierIds(const vector<Frontier> &frontiers) {
+  std::ostringstream stream;
+  for (size_t index = 0; index < frontiers.size(); ++index) {
+    if (index != 0)
+      stream << ", ";
+    stream << frontiers[index].id_;
+  }
+  return stream.str();
+}
+} // namespace
+
 FrontierFinder::FrontierFinder(const EDTEnvironment::Ptr &edt,
                                ros::NodeHandle &nh) {
   this->edt_env_ = edt;
@@ -59,6 +72,145 @@ FrontierFinder::FrontierFinder(const EDTEnvironment::Ptr &edt,
 
 FrontierFinder::~FrontierFinder() {}
 
+void FrontierFinder::printLocalMapUnknownStats(const Vector3d &cur_pos,
+                                               const string &tag) {
+  Vector3d update_min, update_max;
+  edt_env_->sdf_map_->getUpdatedBox(update_min, update_max, false);
+
+  auto countOccupancyInBox = [&](const Vector3d &box_min, const Vector3d &box_max,
+                                 const string &box_tag) {
+    Eigen::Vector3i min_idx, max_idx;
+    edt_env_->sdf_map_->posToIndex(box_min, min_idx);
+    edt_env_->sdf_map_->posToIndex(box_max, max_idx);
+    edt_env_->sdf_map_->boundIndex(min_idx);
+    edt_env_->sdf_map_->boundIndex(max_idx);
+
+    int unknown_count = 0;
+    int free_count = 0;
+    int underobserved_count = 0;
+    int occupied_count = 0;
+    int total_count = 0;
+    for (int x = min_idx.x(); x <= max_idx.x(); ++x) {
+      for (int y = min_idx.y(); y <= max_idx.y(); ++y) {
+        for (int z = min_idx.z(); z <= max_idx.z(); ++z) {
+          const Eigen::Vector3i idx(x, y, z);
+          if (!edt_env_->sdf_map_->isInBox(idx))
+            continue;
+          ++total_count;
+          const int occupancy = edt_env_->sdf_map_->getOccupancy(idx);
+          if (occupancy == SDFMap::UNKNOWN)
+            ++unknown_count;
+          else if (occupancy == SDFMap::FREE)
+            ++free_count;
+          else if (occupancy == SDFMap::UNDEROBSERVED)
+            ++underobserved_count;
+          else if (occupancy == SDFMap::OCCUPIED)
+            ++occupied_count;
+        }
+      }
+    }
+
+    const double unknown_ratio =
+        total_count > 0 ? static_cast<double>(unknown_count) / total_count : 0.0;
+    ROS_WARN(
+        "[FrontierDebug][%s] %s box: min=(%.2f %.2f %.2f), max=(%.2f %.2f %.2f), total=%d, unknown=%d (%.3f), free=%d, underobserved=%d, occupied=%d",
+        tag.c_str(), box_tag.c_str(), box_min.x(), box_min.y(), box_min.z(),
+        box_max.x(), box_max.y(), box_max.z(), total_count, unknown_count,
+        unknown_ratio, free_count, underobserved_count, occupied_count);
+  };
+
+  countOccupancyInBox(update_min, update_max, "updated");
+
+  const double local_half_extent = std::max(2.0, frt_cluster_radius_);
+  const Vector3d local_min =
+      cur_pos - Vector3d(local_half_extent, local_half_extent, local_half_extent);
+  const Vector3d local_max =
+      cur_pos + Vector3d(local_half_extent, local_half_extent, local_half_extent);
+  countOccupancyInBox(local_min, local_max, "around_uav");
+}
+
+void FrontierFinder::printClusterDebugInfo(const int cluster_id,
+                                           const string &tag) {
+  if (cluster_id < 0 || cluster_id >= static_cast<int>(frontier_clusters_.size())) {
+    ROS_WARN("[FrontierDebug][%s] invalid cluster id: %d, cluster num: %zu",
+             tag.c_str(), cluster_id, frontier_clusters_.size());
+    return;
+  }
+
+  const FrontierCluster &cluster = frontier_clusters_[cluster_id];
+  ROS_WARN(
+      "[FrontierDebug][%s] selected cluster id=%d, center=(%.2f %.2f %.2f), frontier_count=%zu, frontier_ids=[%s]",
+      tag.c_str(), cluster_id, cluster.center_.x(), cluster.center_.y(),
+      cluster.center_.z(), cluster.frts_.size(),
+      formatFrontierIds(cluster.frts_).c_str());
+
+  for (size_t frontier_index = 0; frontier_index < cluster.frts_.size(); ++frontier_index) {
+    const Frontier &frontier = cluster.frts_[frontier_index];
+    const Vector3d top_view = frontier.viewpoints_.empty()
+                                  ? frontier.average_
+                                  : frontier.viewpoints_.front().pos_;
+    ROS_WARN(
+        "[FrontierDebug][%s] cluster=%d frontier[%zu]: id=%d, cells=%zu, filtered=%zu, viewpoints=%zu, avg=(%.2f %.2f %.2f), top_view=(%.2f %.2f %.2f)",
+        tag.c_str(), cluster_id, frontier_index, frontier.id_, frontier.cells_.size(),
+        frontier.filtered_cells_.size(), frontier.viewpoints_.size(),
+        frontier.average_.x(), frontier.average_.y(), frontier.average_.z(),
+        top_view.x(), top_view.y(), top_view.z());
+  }
+}
+
+void FrontierFinder::printActiveFrontierDebugInfo(const string &tag) {
+  if (active_frontier_ids_.empty()) {
+    ROS_WARN("[FrontierDebug][%s] no active frontiers", tag.c_str());
+    return;
+  }
+
+  std::ostringstream id_stream;
+  for (size_t index = 0; index < active_frontier_ids_.size(); ++index) {
+    if (index != 0)
+      id_stream << ", ";
+    id_stream << active_frontier_ids_[index];
+  }
+  ROS_WARN("[FrontierDebug][%s] active frontier ids=[%s]",
+           tag.c_str(), id_stream.str().c_str());
+
+  for (const int frontier_id : active_frontier_ids_) {
+    auto frontier_it =
+        std::find_if(frontiers_.begin(), frontiers_.end(),
+                     [&](const Frontier &frontier) { return frontier.id_ == frontier_id; });
+    if (frontier_it == frontiers_.end()) {
+      ROS_WARN("[FrontierDebug][%s] active frontier id=%d not found in frontiers_",
+               tag.c_str(), frontier_id);
+      continue;
+    }
+
+    const Frontier &frontier = *frontier_it;
+    const Vector3d top_view = frontier.viewpoints_.empty()
+                                  ? frontier.average_
+                                  : frontier.viewpoints_.front().pos_;
+    ROS_WARN(
+        "[FrontierDebug][%s] active frontier id=%d, cells=%zu, filtered=%zu, viewpoints=%zu, avg=(%.2f %.2f %.2f), box_min=(%.2f %.2f %.2f), box_max=(%.2f %.2f %.2f), top_view=(%.2f %.2f %.2f)",
+        tag.c_str(), frontier.id_, frontier.cells_.size(),
+        frontier.filtered_cells_.size(), frontier.viewpoints_.size(),
+        frontier.average_.x(), frontier.average_.y(), frontier.average_.z(),
+        frontier.box_min_.x(), frontier.box_min_.y(), frontier.box_min_.z(),
+        frontier.box_max_.x(), frontier.box_max_.y(), frontier.box_max_.z(),
+        top_view.x(), top_view.y(), top_view.z());
+  }
+}
+
+bool FrontierFinder::isFrontierCellActive(const Eigen::Vector3i &idx) {
+  if (!knownfree(idx))
+    return false;
+
+  if (isNeighborUnknown(idx))
+    return true;
+
+  if (isNeighborUnderObserved(idx))
+    return true;
+
+  return false;
+}
+
 void FrontierFinder::searchFrontiers(Eigen::Vector3d cur_pos) {
   ros::Time t1 = ros::Time::now();
   tmp_frontiers_.clear();
@@ -86,9 +238,7 @@ void FrontierFinder::searchFrontiers(Eigen::Vector3d cur_pos) {
   removed_cluster_ids_.clear();
   int rmv_idx = 0;
   for (int iter = 0; iter < frontiers_.size();) {
-    if (haveOverlap(frontiers_[iter].box_min_, frontiers_[iter].box_max_,
-                    update_min, update_max) &&
-        isFrontierChanged(frontiers_[iter])) {
+    if (isFrontierChanged(frontiers_[iter])) {
 
       resetFlag(iter, frontiers_);
       removed_ids_.push_back(rmv_idx);
@@ -100,10 +250,7 @@ void FrontierFinder::searchFrontiers(Eigen::Vector3d cur_pos) {
   frts_num_after_remove_ = frontiers_.size();
   // std::cout << "After remove: " << frontiers_.size() << std::endl;
   for (int iter = 0; iter < dormant_frontiers_.size();) {
-    if (haveOverlap(dormant_frontiers_[iter].box_min_,
-                    dormant_frontiers_[iter].box_max_, update_min,
-                    update_max) &&
-        isFrontierChanged(dormant_frontiers_[iter]))
+    if (isFrontierChanged(dormant_frontiers_[iter]))
       resetFlag(iter, dormant_frontiers_);
     else
       ++iter;
@@ -135,9 +282,7 @@ void FrontierFinder::searchFrontiers(Eigen::Vector3d cur_pos) {
         Eigen::Vector3i cur(x, y, z);
         Eigen::Vector3d pos;
         edt_env_->sdf_map_->indexToPos(cur, pos);
-        if (frontier_flag_[toadr(cur)] == 0 &&
-            ((knownfree(cur) &&
-              (isNeighborUnderObserved(cur) || isNeighborUnknown(cur))))) {
+        if (frontier_flag_[toadr(cur)] == 0 && isFrontierCellActive(cur)) {
           // Expand from the seed cell to find a complete frontier cluster
           expandFrontier(cur);
         }
@@ -460,6 +605,10 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
   bool merge;
   neighbor = false; //If the drone is in a viewpoint cluster, give this cluster the highest priority
 
+  auto clusterAnchor = [](const Frontier &frontier) {
+    return frontier.average_;
+  };
+
   vector<int> frt_ids;
   vector<int> left_ids;
   vector<double> vp_dists;
@@ -467,8 +616,7 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
   // cluster frontiers neighbor cur_pos
   for (int i = 0; i < frontiers_.size(); i++) {
     frt_ids.push_back(i);
-    vp_dists.push_back(
-        (frontiers_[i].viewpoints_.front().pos_ - cur_pos).norm());
+    vp_dists.push_back((clusterAnchor(frontiers_[i]) - cur_pos).norm());
   }
 
   auto dist_sort = [=](int id1, int id2) {
@@ -479,12 +627,13 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
   FrontierCluster first_tmp_clu;
   //check between the drone and the frontier
   for (auto frt_id : frt_ids) {
-    double d_ = (frontiers_[frt_id].viewpoints_.front().pos_ - cur_pos).norm();
+    const Vector3d frontier_anchor = clusterAnchor(frontiers_[frt_id]);
+    double d_ = (frontier_anchor - cur_pos).norm();
     if (d_ > frt_cluster_radius_/2)
       break;
     merge = true;
     Vector3i idx;
-    raycaster_->input(frontiers_[frt_id].viewpoints_.front().pos_, cur_pos);
+    raycaster_->input(frontier_anchor, cur_pos);
     while (raycaster_->nextId(idx)) {
       // Hit obstacle, stop the ray
       if (edt_env_->sdf_map_->getOccupancy(idx) != SDFMap::FREE ||
@@ -498,8 +647,7 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
 
     //check between the frontier and the frontier
     for (auto ftr : first_tmp_clu.frts_) {
-      raycaster_->input(frontiers_[frt_id].viewpoints_.front().pos_,
-                        ftr.viewpoints_.front().pos_);
+      raycaster_->input(frontier_anchor, clusterAnchor(ftr));
       while (raycaster_->nextId(idx)) {
         // Hit obstacle, stop the ray
         if (edt_env_->sdf_map_->getOccupancy(idx) != SDFMap::FREE ||
@@ -515,7 +663,7 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
       frontiers_[frt_id].divided = true;
       first_tmp_clu.center_ =
           (double(first_tmp_clu.frts_.size()) * first_tmp_clu.center_ +
-           frontiers_[frt_id].viewpoints_.front().pos_) /
+           frontier_anchor) /
           double(first_tmp_clu.frts_.size() + 1);
       first_tmp_clu.frts_.emplace_back(frontiers_[frt_id]);
       neighbor = true;
@@ -530,7 +678,7 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
       continue;
     FrontierCluster tmp_clu_;
     tmp_clu_.frts_.push_back(frontiers_[i]);
-    tmp_clu_.center_ = frontiers_[i].viewpoints_.front().pos_;
+    tmp_clu_.center_ = clusterAnchor(frontiers_[i]);
     frontiers_[i].divided = true;
 
     frt_ids.clear();  // frt_ids is the index of frontiers_, like [2,4,7,9]
@@ -543,15 +691,15 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
         continue;
       frt_ids.push_back(id);
       left_ids.push_back(idx++);
-      vp_dists.push_back(
-          (frontiers_[id].viewpoints_.front().pos_ - tmp_clu_.center_).norm());
+      vp_dists.push_back((clusterAnchor(frontiers_[id]) - tmp_clu_.center_).norm());
     }
     sort(left_ids.begin(), left_ids.end(), dist_sort);
 
     int j = 0;
     while (j < frt_ids.size()) {
       int frt_id = frt_ids[left_ids[j]];
-      double d_ = (frontiers_[frt_id].viewpoints_.front().pos_-tmp_clu_.center_).norm();
+      const Vector3d frontier_anchor = clusterAnchor(frontiers_[frt_id]);
+      double d_ = (frontier_anchor - tmp_clu_.center_).norm();
 
       if (d_ > frt_cluster_radius_) {
         break; //early stop because no neighbor cluster left
@@ -560,8 +708,7 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
       merge = true;
       for (auto ftr : tmp_clu_.frts_) {
         Vector3i idx;
-        raycaster_->input(frontiers_[frt_id].viewpoints_.front().pos_,
-                          ftr.viewpoints_.front().pos_);
+        raycaster_->input(frontier_anchor, clusterAnchor(ftr));
         while (raycaster_->nextId(idx)) {
           // Hit obstacle, stop the ray
           if (edt_env_->sdf_map_->getOccupancy(idx) != SDFMap::FREE ||
@@ -577,7 +724,7 @@ void FrontierFinder::clusterFrontiers(const Eigen::Vector3d &cur_pos,
       if (merge) {
         frontiers_[frt_id].divided = true;
         tmp_clu_.center_ = (double(tmp_clu_.frts_.size()) * tmp_clu_.center_ +
-                            frontiers_[frt_id].viewpoints_.front().pos_) /
+                            frontier_anchor) /
                            double(tmp_clu_.frts_.size() + 1);
         tmp_clu_.frts_.emplace_back(frontiers_[frt_id]);
 
@@ -704,31 +851,16 @@ bool FrontierFinder::haveOverlap(const Vector3d &min1, const Vector3d &max1,
 
 bool FrontierFinder::isFrontierChanged(const Frontier &ft) {
   int change_num = 0;
-  int thresh = 0;
-  // if (ft.type_ == UNKNOWNFTR) {
-  //   thresh = 0;
-  // } else {
-  //   thresh = ft.cells_.size() * 0.08;
-  // }
-
-  thresh = ft.cells_.size() * 0.2;
+  const int thresh = max(1, static_cast<int>(ft.cells_.size() * 0.2));
 
   for (auto cell : ft.cells_) {
     Eigen::Vector3i idx;
     edt_env_->sdf_map_->posToIndex(cell, idx);
-    // if (ft.type_ == UNKNOWNFTR && !(knownfree(idx) &&
-    // isNeighborUnknown(idx))) {
-    //   change_num++;
-    // }
-    // if (ft.type_ == SURFACEFTR &&
-    //     !(knownfree(idx) && isNeighborUnderObserved(idx))) {
-    //   change_num++;
-    // }
-    if (!(knownfree(idx) && isNeighborUnknown(idx))) {
+    if (!isFrontierCellActive(idx)) {
       change_num++;
     }
 
-    if (change_num > thresh)
+    if (change_num >= thresh)
       return true;
   }
   return false;
@@ -1064,22 +1196,100 @@ void FrontierFinder::getFrontierBoxes(
 }
 
 void FrontierFinder::getCheckTour(const int cluster_id,
+                                  const Vector3d &cur_pos,
+                                  const Vector3d &next_cluster_pos,
                                   vector<checkPoint> &local_tour) {
   check_tour.clear();
+  active_frontier_ids_.clear();
   FrontierCluster next_clu = frontier_clusters_[cluster_id];
+  Vector3d move_dir = next_cluster_pos - cur_pos;
+  const bool has_move_dir = move_dir.norm() > 1e-3;
+  if (has_move_dir)
+    move_dir.normalize();
+
   for (int i = 0; i < next_clu.frts_.size(); i++) {
     checkPoint cp;
-    Eigen::Vector3d cp_pos = next_clu.frts_[i].viewpoints_.front().pos_;
-    cp.yaws_.push_back(next_clu.frts_[i].viewpoints_.front().yaw_);
+    const Frontier &frontier = next_clu.frts_[i];
+    Vector3d frontier_dir = frontier.average_ - cur_pos;
+    const bool has_frontier_dir = frontier_dir.norm() > 1e-3;
+    if (has_frontier_dir)
+      frontier_dir.normalize();
+
+    int best_view_id = 0;
+    double best_score = -std::numeric_limits<double>::infinity();
+    double best_path_len = -1.0;
+    double best_progress_score = 0.0;
+    double best_avg_alignment = 0.0;
+    double best_leave_score = 0.0;
+    for (int view_id = 0; view_id < frontier.viewpoints_.size(); ++view_id) {
+      const Viewpoint &view = frontier.viewpoints_[view_id];
+      const Vector3d from_cur = view.pos_ - cur_pos;
+      const double dist_to_cur = from_cur.norm();
+      vector<Vector3d> cur_to_view_path;
+      const double path_len = ViewNode::searchPath(cur_pos, view.pos_, cur_to_view_path);
+      const bool reachable = path_len < 999.0;
+
+      double progress_score = 0.0;
+      if (has_move_dir && dist_to_cur > 1e-3)
+        progress_score = from_cur.normalized().dot(move_dir);
+
+      double avg_alignment = 0.0;
+      if (has_frontier_dir && dist_to_cur > 1e-3)
+        avg_alignment = from_cur.normalized().dot(frontier_dir);
+
+      double score = 0.02 * view.visib_num_ + 1.8 * progress_score +
+                     2.6 * avg_alignment;
+      if (reachable)
+        score += 0.15 * min(path_len, 2.5);
+      else
+        score -= 100.0;
+      if (dist_to_cur < 0.8)
+        score -= 2.0;
+      if (dist_to_cur > 4.0)
+        score -= 0.4 * (dist_to_cur - 4.0);
+      if (progress_score < -0.1)
+        score -= 2.5 * fabs(progress_score);
+      if (avg_alignment < 0.0)
+        score -= 3.0 * fabs(avg_alignment);
+
+      double leave_score = 0.0;
+      if (has_move_dir && reachable) {
+        const Vector3d to_next_cluster = next_cluster_pos - view.pos_;
+        if (to_next_cluster.norm() > 1e-3) {
+          leave_score = to_next_cluster.normalized().dot(move_dir);
+          score += 0.8 * leave_score;
+        }
+      }
+
+      if (score > best_score) {
+        best_score = score;
+        best_view_id = view_id;
+        best_path_len = path_len;
+        best_progress_score = progress_score;
+        best_avg_alignment = avg_alignment;
+        best_leave_score = leave_score;
+      }
+    }
+
+    Eigen::Vector3d cp_pos = frontier.viewpoints_[best_view_id].pos_;
+    cp.yaws_.push_back(frontier.viewpoints_[best_view_id].yaw_);
     cp.pos_ = cp_pos;
     check_tour.push_back(cp);
+    active_frontier_ids_.push_back(next_clu.frts_[i].id_);
+    ROS_WARN(
+        "[FrontierDebug][getCheckTour] cluster=%d frontier=%d best_view=%d cp=(%.2f %.2f %.2f) avg=(%.2f %.2f %.2f) score=%.2f path=%.2f progress=%.2f avg_align=%.2f leave=%.2f",
+        cluster_id, frontier.id_, best_view_id, cp_pos.x(), cp_pos.y(),
+        cp_pos.z(), frontier.average_.x(), frontier.average_.y(),
+        frontier.average_.z(), best_score, best_path_len, best_progress_score,
+        best_avg_alignment, best_leave_score);
   }
 
   auto updateCost = [](checkPoint &clu1, checkPoint &clu2) {
     // Search path from old cluster's top viewpoint to new cluster'
     double pos_cost_ij = (clu1.pos_ - clu2.pos_).norm() / ViewNode::vm_;
-    double yaw_cost_ij =
-        (clu1.yaws_.front() - clu2.yaws_.front()) / ViewNode::yd_;
+    double yaw_diff = fabs(clu1.yaws_.front() - clu2.yaws_.front());
+    yaw_diff = min(yaw_diff, 2 * M_PI - yaw_diff);
+    double yaw_cost_ij = yaw_diff / ViewNode::yd_;
     double cost_ij = max(pos_cost_ij, yaw_cost_ij);
     // Insert item for both old and new clusters
     clu1.costs_.push_back(cost_ij);
@@ -1224,6 +1434,17 @@ void FrontierFinder::getClusterCenter(vector<Vector3d> &centers) {
   }
 }
 
+void FrontierFinder::getClusterUtilities(vector<double> &utilities) {
+  utilities.clear();
+  for (const auto &cluster : frontier_clusters_) {
+    double utility = 0.0;
+    for (const auto &frontier : cluster.frts_) {
+      utility += static_cast<double>(frontier.filtered_cells_.size());
+    }
+    utilities.push_back(utility);
+  }
+}
+
 void FrontierFinder::findViewpoints(const Vector3d &sample,
                                     const Vector3d &ftr_avg,
                                     vector<Viewpoint> &vps) {
@@ -1350,7 +1571,8 @@ bool FrontierFinder::isFrontierCovered() {
   ROS_WARN("[isFrontierCovered] update box: %.2f %.2f %.2f -> %.2f %.2f %.2f",
       update_min.x(), update_min.y(), update_min.z(),
       update_max.x(), update_max.y(), update_max.z());
-  ROS_WARN("[isFrontierCovered] frontier num: %zu", frontiers_.size());
+  ROS_WARN("[isFrontierCovered] frontier num: %zu, active frontier num: %zu",
+      frontiers_.size(), active_frontier_ids_.size());
   // for (auto ftr : frontiers_) {
   //   ROS_WARN("  ftr box: %.2f %.2f -> %.2f %.2f, overlap: %d",
   //       ftr.box_min_.x(), ftr.box_min_.y(),
@@ -1358,21 +1580,23 @@ bool FrontierFinder::isFrontierCovered() {
   //       haveOverlap(ftr.box_min_, ftr.box_max_, update_min, update_max));
   //   }
 
+  if (active_frontier_ids_.empty())
+    return false;
+
   auto checkChanges = [&](const vector<Frontier> &frontiers) {
-    for (auto ftr : frontiers) {
+    for (const auto &ftr : frontiers) {
+      if (find(active_frontier_ids_.begin(), active_frontier_ids_.end(),
+               ftr.id_) == active_frontier_ids_.end())
+        continue;
       if (!haveOverlap(ftr.box_min_, ftr.box_max_, update_min, update_max))
         continue;
-      const int change_thresh = min_view_finish_fraction_ * ftr.cells_.size();
+      const int change_thresh =
+          max(1, static_cast<int>(min_view_finish_fraction_ * ftr.cells_.size()));
       int change_num = 0;
       for (auto cell : ftr.cells_) {
         Eigen::Vector3i idx;
         edt_env_->sdf_map_->posToIndex(cell, idx);
-        if (!(knownfree(idx)&&(isNeighborUnknown(idx))) && 
-            ++change_num >= change_thresh)
-          // if (!(knownfree(idx) && (isNeighborUnknown(idx))) &&
-          //     ++change_num >= change_thresh)
-          // if (!(knownfree(idx) && isNeighborUnderObserved(idx)) &&
-          //     ++change_num >= change_thresh)
+        if (!isFrontierCellActive(idx) && ++change_num >= change_thresh)
           return true;
       }
     }

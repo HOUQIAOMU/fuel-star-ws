@@ -88,6 +88,18 @@ private:
                           const vector<Vector3d> &cluster_centers,
                           const Eigen::MatrixXd &cluster_cost_matrix,
                           vector<int> &indices, double &inertia_cost);
+  void applyRecentClusterSuppression(const Vector3d &cur_pos,
+                                     const vector<Vector3d> &cluster_centers,
+                                     Eigen::MatrixXd &cluster_cost_matrix);
+  void applyClusterUtilityBonus(const vector<Vector3d> &cluster_centers,
+                                Eigen::MatrixXd &cluster_cost_matrix);
+  int applyGlobalTargetCommitment(const Vector3d &cur_pos,
+                                  const vector<int> &indices,
+                                  const vector<Vector3d> &cluster_centers,
+                                  const Eigen::MatrixXd &cluster_cost_matrix,
+                                  int current_order,
+                                  double cluster_arrived_thresh);
+  void updateRecentClusterHistory(const Vector3d &cluster_center);
 
   void shortenPath(vector<Vector3d> &path);
   void solveTSP(const Eigen::MatrixXd &cost_matrix, const TSPConfig &config,
@@ -100,6 +112,10 @@ private:
   void clearExplorationData();
   double hausdorffDistance(const vector<Vector3d> &set1,
                            const vector<Vector3d> &set2, vector<int> &indices);
+
+  vector<Vector3d> recent_cluster_history_;
+  bool has_committed_cluster_;
+  Vector3d committed_cluster_center_;
 
 public:
   typedef shared_ptr<FastExplorationManager> Ptr;

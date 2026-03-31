@@ -1054,10 +1054,11 @@ void FastPlannerManager::planYawExplore(const Eigen::Vector3d &start_yaw,
   calcNextYaw(last_yaw, end_yaw3d(0));
   yaw.block<3, 1>(seg_num, 0) = states2pts * end_yaw3d;
 
-  // Debug rapid change of yaw
-  if (fabs(start_yaw3d[0] - end_yaw3d[0]) >= M_PI) {
+  // Debug rapid change of yaw after unwrap.
+  const double yaw_delta = fabs(end_yaw3d[0] - last_yaw);
+  if (yaw_delta >= M_PI) {
     ROS_ERROR("Yaw change rapidly!");
-    std::cout << "start yaw: " << start_yaw3d[0] << ", " << end_yaw3d[0]
+    std::cout << "start yaw: " << last_yaw << ", " << end_yaw3d[0]
               << std::endl;
   }
 

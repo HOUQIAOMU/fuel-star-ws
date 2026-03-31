@@ -129,7 +129,9 @@ public:
   void getPathForTour(const Vector3d &pos, const vector<int> &tsp_ids,
                       vector<Vector3d> &path); // 获取frontier的路径
 
-  void getCheckTour(const int cluster_id, vector<checkPoint> &check_tour);
+  void getCheckTour(const int cluster_id, const Vector3d &cur_pos,
+                    const Vector3d &next_cluster_pos,
+                    vector<checkPoint> &check_tour);
   void setNextFrontier(const int &id);
   bool isFrontierCovered();
   int getFrontierClusterNum();
@@ -138,6 +140,10 @@ public:
                         const Vector3d cur_yaw, Eigen::MatrixXd &cost_mat);
   void getClusterTour(const vector<int> indices, vector<Vector3d> &path);
   void getClusterCenter(vector<Vector3d> &centers);
+  void getClusterUtilities(vector<double> &utilities);
+  void printLocalMapUnknownStats(const Vector3d &cur_pos, const string &tag);
+  void printClusterDebugInfo(const int cluster_id, const string &tag);
+  void printActiveFrontierDebugInfo(const string &tag);
   shared_ptr<PerceptionUtils> percep_utils_;
   vector<FrontierCluster> frontier_clusters_;
 
@@ -147,6 +153,7 @@ private:
   bool splitHorizontally(const Frontier &frontier, vector<Frontier> &splits);
   void mergeFrontiers(Frontier &ftr1, const Frontier &ftr2);
   bool isFrontierChanged(const Frontier &ft);
+  bool isFrontierCellActive(const Eigen::Vector3i &idx);
   bool haveOverlap(const Vector3d &min1, const Vector3d &max1,
                    const Vector3d &min2, const Vector3d &max2);
   void computeFrontierInfo(Frontier &frontier);
@@ -197,6 +204,7 @@ private:
   int first_new_frt_;
   int frts_num_after_remove_;
   Frontier next_frontier_;
+  vector<int> active_frontier_ids_;
   
   vector<checkPoint> check_tour;
 

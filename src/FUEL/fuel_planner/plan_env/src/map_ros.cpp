@@ -155,7 +155,7 @@ void MapROS::visCallback(const ros::TimerEvent &e) {
     }
   }
   publishMinObservedDist();
-  // publishUnderObserved();
+  //publishUnderObserved();
   // publishUnknown();
   // publishESDF();
 
@@ -830,6 +830,6 @@ void MapROS::publishUnderObserved() {
   cloud.header.frame_id = frame_id_;
   sensor_msgs::PointCloud2 cloud_msg;
   pcl::toROSMsg(cloud, cloud_msg);
-  // under_observed_pub_.publish(cloud_msg);
+  //under_observed_pub_.publish(cloud_msg);
 };
 } // namespace fast_planner

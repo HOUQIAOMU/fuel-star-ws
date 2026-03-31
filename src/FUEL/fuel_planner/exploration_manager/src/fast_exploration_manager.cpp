@@ -22,6 +22,37 @@
 using namespace Eigen;
 
 namespace fast_planner {
+namespace {
+double normalizeAngle(double yaw) {
+  while (yaw <= -M_PI)
+    yaw += 2.0 * M_PI;
+  while (yaw > M_PI)
+    yaw -= 2.0 * M_PI;
+  return yaw;
+}
+
+double nearestEquivalentYaw(double reference_yaw, double target_yaw) {
+  double adjusted = normalizeAngle(target_yaw);
+  double diff = adjusted - reference_yaw;
+  while (diff <= -M_PI)
+    diff += 2.0 * M_PI;
+  while (diff > M_PI)
+    diff -= 2.0 * M_PI;
+  return reference_yaw + diff;
+}
+
+constexpr double kRecentClusterPenaltyRadius = 3.5;
+constexpr double kRecentClusterFarThreshold = 5.0;
+constexpr double kRecentClusterPenaltyBase = 12.0;
+constexpr double kRecentClusterMinSeparation = 1.0;
+constexpr size_t kRecentClusterHistoryLimit = 20;
+constexpr double kClusterUtilityBonusScale = 0.02;
+constexpr double kClusterUtilityBonusCap = 10.0;
+constexpr double kCommittedClusterMatchRadius = 2.5;
+constexpr double kCommittedClusterSwitchMargin = 2.5;
+constexpr double kCommittedClusterReachThresh = 1.2;
+} // namespace
+
 // SECTION interfaces for setup and query
 
 FastExplorationManager::FastExplorationManager() {}
@@ -107,6 +138,9 @@ void FastExplorationManager::initialize(ros::NodeHandle &nh) {
   par_file_cluster << "GAIN23 = NO\n";
   par_file_cluster << "OUTPUT_TOUR_FILE =" << ep_->tsp_dir_ << "/cluster.txt\n";
   par_file_cluster << "RUNS = 1\n";
+
+  has_committed_cluster_ = false;
+  committed_cluster_center_.setZero();
 }
 
 int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
@@ -128,6 +162,7 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
   // frontier_finder_->updateFrontierCostMatrix();
   bool neighbor;
   frontier_finder_->clusterFrontiers(pos, neighbor);
+  frontier_finder_->printLocalMapUnknownStats(pos, "planExploreMotionCluster");
 
   frontier_finder_->getFrontiers(ed_->frontiers_);
   // frontier_finder_->getFrontierBoxes(ed_->frontier_boxes_);
@@ -151,8 +186,10 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
     vector<int> indices;
     indices.push_back(0);
     frontier_finder_->getClusterTour(indices, ed_->global_tour_);
-    frontier_finder_->getCheckTour(0, ed_->local_tour_);
     next_cluster_pos = ed_->global_tour_[0];
+    frontier_finder_->getCheckTour(0, pos, next_cluster_pos, ed_->local_tour_);
+    frontier_finder_->printClusterDebugInfo(0, "single_cluster");
+    frontier_finder_->printActiveFrontierDebugInfo("single_cluster");
   }
 
   // for visualize
@@ -166,55 +203,84 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
   Vector3d next_pos;
   vector<double> next_yaw;
   const double arrived_thresh = 0.15;
+  const double cluster_switch_thresh = 0.3;
+  const double useful_path_thresh = 1.2;
+  const double short_yaw_path_thresh = 1.5;
+  vector<int> local_candidates;
+
+  auto assign_local_candidate = [&](int candidate_index) {
+    next_pos = ed_->local_tour_[candidate_index].pos_;
+    next_yaw = ed_->local_tour_[candidate_index].yaws_;
+    ed_->local_tour_vis_.clear();
+    ed_->local_tour_vis_.push_back(pos);
+  };
 
   if (ed_->local_tour_.size() > 1) {
     vector<int> indices;
+    const int local_tour_size = static_cast<int>(ed_->local_tour_.size());
+
     findLocalTour(pos, vel, yaw, next_cluster_pos, indices);
-    if (indices.empty() || indices[0] >= ed_->local_tour_.size()) {
+    if (indices.empty() || indices[0] >= local_tour_size) {
       ROS_ERROR("Invalid local tour index");
       return FAIL;
     }
 
-    int next_index = -1;
     for (const auto &tour_index : indices) {
-      if (tour_index < 0 || tour_index >= ed_->local_tour_.size())
+      if (tour_index < 0 || tour_index >= local_tour_size)
         continue;
-      if ((ed_->local_tour_[tour_index].pos_ - pos).norm() >= arrived_thresh) {
-        next_index = tour_index;
-        break;
+      if ((ed_->local_tour_[tour_index].pos_ - pos).norm() >= arrived_thresh)
+        local_candidates.push_back(tour_index);
+    }
+    if (local_candidates.empty()) {
+      if ((next_cluster_pos - pos).norm() > cluster_switch_thresh) {
+        ROS_WARN("All local viewpoints are too close, switch to next cluster center");
+        next_pos = next_cluster_pos;
+        next_yaw = {atan2(next_cluster_pos.y() - pos.y(),
+                          next_cluster_pos.x() - pos.x())};
+        ed_->local_tour_vis_.clear();
+        ed_->local_tour_vis_.push_back(pos);
+        ed_->local_tour_vis_.push_back(next_cluster_pos);
+      } else {
+        ROS_WARN("All local viewpoints are within arrived threshold, force frontier update");
+        frontier_finder_->searchFrontiers(pos);
+        frontier_finder_->computeFrontiersToVisit(pos);
+        bool neighbor;
+        frontier_finder_->clusterFrontiers(pos, neighbor);
+        return FAIL;
       }
     }
-    if (next_index < 0) {
-      ROS_WARN("All local viewpoints are within arrived threshold, force frontier update");
-      frontier_finder_->searchFrontiers(pos);
-      frontier_finder_->computeFrontiersToVisit(pos);
-      bool neighbor;
-      frontier_finder_->clusterFrontiers(pos, neighbor);
-      return FAIL;
+    if (next_yaw.empty()) {
+      assign_local_candidate(local_candidates.front());
+      for (size_t i = 0; i + 1 < indices.size(); ++i) {
+        ed_->local_tour_vis_.push_back(ed_->local_tour_[indices[i]].pos_);
+      }
+      ed_->local_tour_vis_.push_back(next_cluster_pos);
     }
-
-    next_pos = ed_->local_tour_[next_index].pos_;
-    next_yaw = ed_->local_tour_[next_index].yaws_;
-    ed_->local_tour_vis_.clear();
-    ed_->local_tour_vis_.push_back(pos);
-    for (int i = 0; i < indices.size() - 1; i++) {
-      ed_->local_tour_vis_.push_back(ed_->local_tour_[indices[i]].pos_);
-    }
-    ed_->local_tour_vis_.push_back(next_cluster_pos);
   } else if (ed_->local_tour_.size() == 1) {
     if ((ed_->local_tour_[0].pos_ - pos).norm() < arrived_thresh) {
-      ROS_WARN("Single local viewpoint already reached, force frontier update");
-      frontier_finder_->searchFrontiers(pos);
-      frontier_finder_->computeFrontiersToVisit(pos);
-      bool neighbor;
-      frontier_finder_->clusterFrontiers(pos, neighbor);
-      return FAIL;
+      if ((next_cluster_pos - pos).norm() > cluster_switch_thresh) {
+        ROS_WARN("Single local viewpoint already reached, switch to next cluster center");
+        next_pos = next_cluster_pos;
+        next_yaw = {atan2(next_cluster_pos.y() - pos.y(),
+                          next_cluster_pos.x() - pos.x())};
+        ed_->local_tour_vis_.clear();
+        ed_->local_tour_vis_.push_back(pos);
+        ed_->local_tour_vis_.push_back(next_cluster_pos);
+      } else {
+        ROS_WARN("Single local viewpoint already reached, force frontier update");
+        frontier_finder_->searchFrontiers(pos);
+        frontier_finder_->computeFrontiersToVisit(pos);
+        bool neighbor;
+        frontier_finder_->clusterFrontiers(pos, neighbor);
+        return FAIL;
+      }
+    } else {
+      next_pos = ed_->local_tour_[0].pos_;
+      next_yaw = ed_->local_tour_[0].yaws_;
+      ed_->local_tour_vis_.clear();
+      ed_->local_tour_vis_.push_back(pos);
+      ed_->local_tour_vis_.push_back(ed_->local_tour_[0].pos_);
     }
-    next_pos = ed_->local_tour_[0].pos_;
-    next_yaw = ed_->local_tour_[0].yaws_;
-    ed_->local_tour_vis_.clear();
-    ed_->local_tour_vis_.push_back(pos);
-    ed_->local_tour_vis_.push_back(ed_->local_tour_[0].pos_);
 
   } else
     ROS_ERROR("Empty destination.");
@@ -224,25 +290,210 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
   // Plan trajectory (position and yaw) to the next viewpoint
   t1 = ros::Time::now();
 
-  auto minElementIterator = std::min_element(next_yaw.begin(), next_yaw.end());
-  double min_yaw = *minElementIterator;
-  auto maxElementIterator = std::max_element(next_yaw.begin(), next_yaw.end());
-  double max_yaw = *maxElementIterator;
+  double target_yaw = 0.0;
+  double min_yaw = 0.0;
+  double max_yaw = 0.0;
+  auto update_target_yaw = [&]() {
+    if (next_yaw.empty())
+      return false;
+    target_yaw = nearestEquivalentYaw(yaw[0], next_yaw.front());
+    min_yaw = target_yaw;
+    max_yaw = target_yaw;
+    for (const auto &yaw_candidate : next_yaw) {
+      const double adjusted_yaw = nearestEquivalentYaw(yaw[0], yaw_candidate);
+      if (fabs(adjusted_yaw - yaw[0]) < fabs(target_yaw - yaw[0]))
+        target_yaw = adjusted_yaw;
+      min_yaw = min(min_yaw, adjusted_yaw);
+      max_yaw = max(max_yaw, adjusted_yaw);
+    }
+    return true;
+  };
+
+  if (next_yaw.empty()) {
+    ROS_ERROR("Empty target yaw set");
+    return FAIL;
+  }
+  update_target_yaw();
 
   // Generate trajectory of x,y,z
-  planner_manager_->path_finder_->reset();
-  planner_manager_->path_finder_->setMaxSearchTime(0.001);
-  if (planner_manager_->path_finder_->search(pos, next_pos) !=
-      Astar::REACH_END) {
-    planner_manager_->path_finder_->setMaxSearchTime(0.008);
-    if (planner_manager_->path_finder_->search(pos, next_pos) !=
-        Astar::REACH_END) {
-      ROS_ERROR("No path to next viewpoint");
-      return FAIL;
+  const double map_resolution = sdf_map_->getResolution();
+  auto point_is_searchable = [&](const Vector3d &point) {
+    return sdf_map_->isInBox(point) && sdf_map_->getInflateOccupancy(point) != 1 &&
+           sdf_map_->getDistance(point) > 0.5 * map_resolution;
+  };
+
+  auto project_to_searchable = [&](const Vector3d &origin_point,
+                                   const Vector3d &bias_dir,
+                                   Vector3d &projected_point) {
+    if (point_is_searchable(origin_point)) {
+      projected_point = origin_point;
+      return true;
+    }
+
+    Vector3d search_dir = bias_dir;
+    if (search_dir.norm() > 1e-3)
+      search_dir.normalize();
+
+    const vector<double> radii = {map_resolution, 2.0 * map_resolution,
+                                  3.0 * map_resolution, 5.0 * map_resolution,
+                                  8.0 * map_resolution};
+    double best_score = std::numeric_limits<double>::infinity();
+    bool found = false;
+
+    for (const double radius : radii) {
+      for (int dx = -1; dx <= 1; ++dx) {
+        for (int dy = -1; dy <= 1; ++dy) {
+          for (int dz = -1; dz <= 1; ++dz) {
+            if (dx == 0 && dy == 0 && dz == 0)
+              continue;
+            Vector3d offset(dx * radius, dy * radius, dz * 0.5 * radius);
+            Vector3d sample = origin_point + offset;
+            if (!point_is_searchable(sample))
+              continue;
+
+            double score = offset.norm();
+            if (search_dir.norm() > 1e-3) {
+              const double alignment = offset.normalized().dot(search_dir);
+              score -= 0.3 * alignment;
+            }
+            if (score < best_score) {
+              best_score = score;
+              projected_point = sample;
+              found = true;
+            }
+          }
+        }
+      }
+      if (found)
+        return true;
+    }
+    return false;
+  };
+
+  auto search_path_to = [&](const Vector3d &goal,
+                            vector<Eigen::Vector3d> &path_out) {
+    Vector3d search_start = pos;
+    Vector3d search_goal = goal;
+    const Vector3d goal_dir = goal - pos;
+
+    if (!project_to_searchable(pos, goal_dir, search_start)) {
+      ROS_WARN("Current position is not in free space for A*, cannot project to a valid start");
+      return false;
+    }
+    if (!project_to_searchable(goal, pos - goal, search_goal)) {
+      ROS_WARN("Goal position is not in free space for A*, cannot project to a valid goal");
+      return false;
+    }
+    if ((search_start - pos).norm() > 1e-3 || (search_goal - goal).norm() > 1e-3) {
+      ROS_WARN("Adjust path endpoints for search: start %.2f %.2f %.2f -> %.2f %.2f %.2f, goal %.2f %.2f %.2f -> %.2f %.2f %.2f",
+               pos.x(), pos.y(), pos.z(),
+               search_start.x(), search_start.y(), search_start.z(),
+               goal.x(), goal.y(), goal.z(),
+               search_goal.x(), search_goal.y(), search_goal.z());
+    }
+
+    planner_manager_->path_finder_->reset();
+    for (const double max_search_time : {0.001, 0.008, 0.02}) {
+      planner_manager_->path_finder_->setMaxSearchTime(max_search_time);
+      if (planner_manager_->path_finder_->search(search_start, search_goal) == Astar::REACH_END) {
+        path_out = planner_manager_->path_finder_->getPath();
+        if ((path_out.front() - pos).norm() > 1e-3)
+          path_out.insert(path_out.begin(), pos);
+        if ((path_out.back() - goal).norm() > 1e-3)
+          path_out.push_back(goal);
+        return true;
+      }
+    }
+    return false;
+  };
+
+  vector<Eigen::Vector3d> searched_path;
+  bool path_found = false;
+  double searched_path_len = -1.0;
+
+  auto evaluate_goal = [&](const Vector3d &goal,
+                           vector<Eigen::Vector3d> &path_out,
+                           double &path_len) {
+    if (!search_path_to(goal, path_out))
+      return false;
+    path_len = Astar::pathLength(path_out);
+    return true;
+  };
+
+  if (!local_candidates.empty() && ed_->local_tour_.size() > 1) {
+    vector<Eigen::Vector3d> best_short_path;
+    double best_short_len = -1.0;
+    int best_short_index = -1;
+    for (const auto &candidate_index : local_candidates) {
+      assign_local_candidate(candidate_index);
+      update_target_yaw();
+
+      vector<Eigen::Vector3d> candidate_path;
+      double candidate_len = -1.0;
+      if (!evaluate_goal(next_pos, candidate_path, candidate_len)) {
+        ROS_WARN("Local viewpoint %d unreachable, skip", candidate_index);
+        continue;
+      }
+      if (candidate_len >= useful_path_thresh) {
+        searched_path = candidate_path;
+        searched_path_len = candidate_len;
+        path_found = true;
+        break;
+      }
+      if (candidate_len > best_short_len) {
+        best_short_path = candidate_path;
+        best_short_len = candidate_len;
+        best_short_index = candidate_index;
+      }
+    }
+    if (!path_found && best_short_index >= 0) {
+      ROS_WARN("Only short local paths are available, use candidate %d", best_short_index);
+      assign_local_candidate(best_short_index);
+      update_target_yaw();
+      searched_path = best_short_path;
+      searched_path_len = best_short_len;
+      path_found = true;
+    }
+  } else {
+    path_found = evaluate_goal(next_pos, searched_path, searched_path_len);
+  }
+
+  if (( !path_found || searched_path_len < useful_path_thresh) &&
+      (next_cluster_pos - pos).norm() > cluster_switch_thresh) {
+    next_pos = next_cluster_pos;
+    next_yaw = {atan2(next_cluster_pos.y() - pos.y(),
+                      next_cluster_pos.x() - pos.x())};
+    update_target_yaw();
+
+    vector<Eigen::Vector3d> cluster_path;
+    double cluster_path_len = -1.0;
+    if (evaluate_goal(next_pos, cluster_path, cluster_path_len) &&
+        cluster_path_len > searched_path_len + 0.1) {
+      ROS_WARN("Use next cluster center instead of short local path");
+      searched_path = cluster_path;
+      searched_path_len = cluster_path_len;
+      path_found = true;
     }
   }
-  ed_->path_next_goal_ = planner_manager_->path_finder_->getPath();
+  if (!path_found) {
+    ROS_ERROR("No path to next viewpoint or next cluster center, refresh frontier");
+    frontier_finder_->searchFrontiers(pos);
+    frontier_finder_->computeFrontiersToVisit(pos);
+    bool neighbor;
+    frontier_finder_->clusterFrontiers(pos, neighbor);
+    return FAIL;
+  }
+
+  ed_->path_next_goal_ = searched_path;
   shortenPath(ed_->path_next_goal_);
+
+  if (searched_path_len < short_yaw_path_thresh &&
+      (next_cluster_pos - pos).norm() > searched_path_len + 0.3) {
+    ROS_WARN("Short local motion detected, align yaw with next cluster center");
+    next_yaw = {atan2(next_cluster_pos.y() - pos.y(),
+                      next_cluster_pos.x() - pos.x())};
+    update_target_yaw();
+  }
 
   // Compute time lower bound of yaw and use in trajectory generation
   double diff = fabs(min_yaw - yaw[0]);
@@ -309,7 +560,7 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
               planner_manager_->local_data_.position_traj_.getTimeSum());
   }
 
-  planner_manager_->planYawExplore(yaw, min_yaw, false, ep_->relax_time_);
+  planner_manager_->planYawExplore(yaw, target_yaw, true, ep_->relax_time_);
 
   double traj_plan_time = (ros::Time::now() - t1).toSec();
   t1 = ros::Time::now();
@@ -375,10 +626,12 @@ void FastExplorationManager::findNextCluster(const Vector3d &cur_pos,
   Eigen::MatrixXd cost_matrix;
   frontier_finder_->getClusterMatrix(cur_pos, cur_vel, cur_yaw, cost_matrix);
   if (neighbor)
-    cost_matrix(0, 1) = 0.0;
+    cost_matrix(0, 1) = 2.0;
 
   vector<Eigen::Vector3d> centers;
   frontier_finder_->getClusterCenter(centers);
+  applyClusterUtilityBonus(centers, cost_matrix);
+  applyRecentClusterSuppression(cur_pos, centers, cost_matrix);
   vector<int> inertial_indices, TSP_indices;
   double inertial_cost = std::numeric_limits<double>::max(),
          TSP_cost = std::numeric_limits<double>::max();
@@ -408,15 +661,219 @@ void FastExplorationManager::findNextCluster(const Vector3d &cur_pos,
     // ROS_WARN("[findNextCluster] Using TSP tour");
   }
 
-  next_cluster_pos = centers[indices[1]];
-  ROS_WARN("[findNextCluster] cluster num: %zu, indices[0]: %d, next_cluster: %.2f %.2f %.2f",
+  const double cluster_arrived_thresh = 0.3;
+  int current_order = 0;
+  vector<checkPoint> candidate_tour;
+  for (size_t order = 0; order < indices.size(); ++order) {
+    const int next_order =
+        min(static_cast<int>(order) + 1, static_cast<int>(indices.size()) - 1);
+    const Vector3d candidate_next_cluster_pos = centers[indices[next_order]];
+    frontier_finder_->getCheckTour(indices[order], cur_pos,
+                                   candidate_next_cluster_pos, candidate_tour);
+    bool cluster_reached = true;
+    for (const auto &checkpoint : candidate_tour) {
+      if ((checkpoint.pos_ - cur_pos).norm() > cluster_arrived_thresh) {
+        cluster_reached = false;
+        break;
+      }
+    }
+    if (!cluster_reached || order == indices.size() - 1) {
+      current_order = static_cast<int>(order);
+      check_tour = candidate_tour;
+      break;
+    }
+  }
+
+  current_order = applyGlobalTargetCommitment(cur_pos, indices, centers, cost_matrix,
+                                              current_order, cluster_arrived_thresh);
+
+  const int next_order = min(current_order + 1, static_cast<int>(indices.size()) - 1);
+  next_cluster_pos = centers[indices[next_order]];
+  frontier_finder_->getCheckTour(indices[current_order], cur_pos, next_cluster_pos,
+                                 check_tour);
+  updateRecentClusterHistory(centers[indices[current_order]]);
+  frontier_finder_->printClusterDebugInfo(indices[current_order], "selected_cluster");
+  frontier_finder_->printActiveFrontierDebugInfo("selected_cluster");
+  ROS_WARN("[findNextCluster] cluster num: %zu, indices[%d]: %d, next_cluster: %.2f %.2f %.2f",
     frontier_finder_->frontier_clusters_.size(),
-    indices[0],
-    centers[indices[1]].x(), centers[indices[1]].y(), centers[indices[1]].z());
-  frontier_finder_->getCheckTour(indices[0], check_tour);
+    current_order,
+    indices[current_order],
+    next_cluster_pos.x(), next_cluster_pos.y(), next_cluster_pos.z());
 
   double cal_time = (ros::Time::now() - t1).toSec();
   // ROS_WARN("[findNextCluster] Calculation Time: %f", cal_time);
+}
+
+int FastExplorationManager::applyGlobalTargetCommitment(
+    const Vector3d &cur_pos, const vector<int> &indices,
+    const vector<Vector3d> &cluster_centers,
+    const Eigen::MatrixXd &cluster_cost_matrix, int current_order,
+    double cluster_arrived_thresh) {
+  if (indices.empty() || cluster_centers.empty())
+    return current_order;
+
+  /*
+   * Global target commitment keeps the current high-level exploration target
+   * stable across several replans.
+   *
+   * Why this is needed:
+   * - The frontier map changes at every sensing update.
+   * - If global planning always picks the instantaneously best cluster, the
+   *   selected target can oscillate between two sides of the map.
+   * - That oscillation shows up as large arcs, heading reversals, and
+   *   "fly a bit -> replan -> fly back" behavior.
+   *
+   * The rule implemented here is intentionally conservative:
+   * 1. If there is no committed cluster yet, accept the current best one.
+   * 2. If the old committed cluster disappeared from the latest cluster list,
+   *    release the commitment and accept the new best one.
+   * 3. If the committed cluster is already close enough to the UAV, release it
+   *    so the planner can naturally switch to the next target.
+   * 4. Otherwise, keep following the committed cluster unless the new best
+   *    cluster is better by a clear margin.
+   *
+   * In short: do not switch the global exploration direction for a tiny cost
+   * change; only switch when there is a clearly better reason.
+   */
+  if (!has_committed_cluster_) {
+    return current_order;
+  }
+
+  int committed_order = -1;
+  double committed_match_dist = std::numeric_limits<double>::infinity();
+  for (size_t order = 0; order < indices.size(); ++order) {
+    const double center_dist =
+        (cluster_centers[indices[order]] - committed_cluster_center_).norm();
+    if (center_dist < committed_match_dist) {
+      committed_match_dist = center_dist;
+      committed_order = static_cast<int>(order);
+    }
+  }
+
+  if (committed_order < 0 || committed_match_dist > kCommittedClusterMatchRadius) {
+    ROS_WARN(
+        "[findNextCluster] release committed cluster: no matched cluster in current frontier set, match_dist=%.2f",
+        committed_match_dist);
+    has_committed_cluster_ = false;
+    return current_order;
+  }
+
+  const Vector3d committed_center = cluster_centers[indices[committed_order]];
+  const double dist_to_committed = (cur_pos - committed_center).norm();
+  if (dist_to_committed <= max(cluster_arrived_thresh, kCommittedClusterReachThresh)) {
+    ROS_WARN(
+        "[findNextCluster] release committed cluster: committed target reached, dist=%.2f",
+        dist_to_committed);
+    has_committed_cluster_ = false;
+    return current_order;
+  }
+
+  const double current_cost =
+      cluster_cost_matrix(0, indices[current_order] + 1);
+  const double committed_cost =
+      cluster_cost_matrix(0, indices[committed_order] + 1);
+
+  if (current_order != committed_order &&
+      current_cost + kCommittedClusterSwitchMargin >= committed_cost) {
+    ROS_WARN(
+        "[findNextCluster] keep committed cluster order=%d center=(%.2f %.2f %.2f), committed_cost=%.2f, challenger_order=%d, challenger_cost=%.2f",
+        committed_order, committed_center.x(), committed_center.y(),
+        committed_center.z(), committed_cost, current_order, current_cost);
+    return committed_order;
+  }
+
+  if (current_order != committed_order) {
+    ROS_WARN(
+        "[findNextCluster] switch committed cluster: challenger is clearly better, old_cost=%.2f, new_cost=%.2f",
+        committed_cost, current_cost);
+  }
+
+  return current_order;
+}
+
+void FastExplorationManager::applyRecentClusterSuppression(
+    const Vector3d &cur_pos, const vector<Vector3d> &cluster_centers,
+    Eigen::MatrixXd &cluster_cost_matrix) {
+  if (recent_cluster_history_.empty() || cluster_centers.empty())
+    return;
+
+  for (size_t cluster_index = 0; cluster_index < cluster_centers.size(); ++cluster_index) {
+    double penalty = 0.0;
+    double nearest_history_dist = std::numeric_limits<double>::infinity();
+    Vector3d nearest_history = Vector3d::Zero();
+
+    for (const auto &history_center : recent_cluster_history_) {
+      const double cur_to_history = (cur_pos - history_center).norm();
+      if (cur_to_history < kRecentClusterFarThreshold)
+        continue;
+
+      const double cluster_to_history =
+          (cluster_centers[cluster_index] - history_center).norm();
+      if (cluster_to_history >= kRecentClusterPenaltyRadius)
+        continue;
+
+      const double candidate_penalty =
+          kRecentClusterPenaltyBase *
+          pow(1.0 - cluster_to_history / kRecentClusterPenaltyRadius, 2.0);
+      if (candidate_penalty > penalty) {
+        penalty = candidate_penalty;
+        nearest_history_dist = cluster_to_history;
+        nearest_history = history_center;
+      }
+    }
+
+    if (penalty > 0.0) {
+      cluster_cost_matrix(0, static_cast<int>(cluster_index) + 1) += penalty;
+      ROS_WARN(
+          "[findNextCluster] suppress revisit for cluster %zu center=(%.2f %.2f %.2f), penalty=%.2f, nearest_history=(%.2f %.2f %.2f), dist=%.2f",
+          cluster_index, cluster_centers[cluster_index].x(),
+          cluster_centers[cluster_index].y(), cluster_centers[cluster_index].z(),
+          penalty, nearest_history.x(), nearest_history.y(), nearest_history.z(),
+          nearest_history_dist);
+    }
+  }
+}
+
+void FastExplorationManager::applyClusterUtilityBonus(
+    const vector<Vector3d> &cluster_centers, Eigen::MatrixXd &cluster_cost_matrix) {
+  vector<double> utilities;
+  frontier_finder_->getClusterUtilities(utilities);
+  if (utilities.size() != cluster_centers.size())
+    return;
+
+  for (size_t cluster_index = 0; cluster_index < utilities.size(); ++cluster_index) {
+    const double bonus =
+        min(kClusterUtilityBonusCap, kClusterUtilityBonusScale * utilities[cluster_index]);
+    if (bonus <= 1e-6)
+      continue;
+
+    cluster_cost_matrix(0, static_cast<int>(cluster_index) + 1) =
+        max(0.0, cluster_cost_matrix(0, static_cast<int>(cluster_index) + 1) - bonus);
+    ROS_WARN(
+        "[findNextCluster] utility bonus for cluster %zu center=(%.2f %.2f %.2f), utility=%.0f, bonus=%.2f",
+        cluster_index, cluster_centers[cluster_index].x(),
+        cluster_centers[cluster_index].y(), cluster_centers[cluster_index].z(),
+        utilities[cluster_index], bonus);
+  }
+}
+
+void FastExplorationManager::updateRecentClusterHistory(
+    const Vector3d &cluster_center) {
+  // Update the committed global target after the final cluster is selected.
+  // This state is reused in the next planning cycle to avoid frequent
+  // left-right switching of the high-level exploration direction.
+  has_committed_cluster_ = true;
+  committed_cluster_center_ = cluster_center;
+
+  if (!recent_cluster_history_.empty() &&
+      (recent_cluster_history_.back() - cluster_center).norm() <
+          kRecentClusterMinSeparation) {
+    return;
+  }
+
+  recent_cluster_history_.push_back(cluster_center);
+  if (recent_cluster_history_.size() > kRecentClusterHistoryLimit)
+    recent_cluster_history_.erase(recent_cluster_history_.begin());
 }
 
 void FastExplorationManager::findLocalTour(const Vector3d &cur_pos,
@@ -925,6 +1382,8 @@ void FastExplorationManager::clearExplorationData() {
   ed_->refined_views1_.clear();
   ed_->refined_views2_.clear();
   ed_->refined_tour_.clear();
+  has_committed_cluster_ = false;
+  committed_cluster_center_.setZero();
 }
 
 double FastExplorationManager::hausdorffDistance(

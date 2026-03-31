@@ -176,25 +176,31 @@ void FastExplorationFSM::FSMCallback(const ros::TimerEvent &e) {
 
     // Replan if traj is almost fully executed
     double time_to_end = info->duration_ - t_cur;
+    const double exec_ratio =
+        info->duration_ > 1e-3 ? t_cur / info->duration_ : 1.0;
+    const double end_replan_thresh =
+        min(fp_->replan_thresh1_, max(0.05, 0.15 * info->duration_));
     // if (info->need_spiral_ == true && time_to_end < fp_->replan_thresh2_) {
     //   ROS_WARN("Replan: prepare to spiral");
     //   transitState(SPIRAL, "FSM");
     // }
 
     bool need_replan = false;
-    if (time_to_end < fp_->replan_thresh1_) {
+    if (time_to_end < end_replan_thresh) {
       ROS_WARN("Replan: traj fully executed");
       need_replan = true;
     }
     // Replan if next frontier to be visited is covered
-    if (t_cur > fp_->replan_thresh2_ &&
+    if (!need_replan && exec_ratio > 0.97 &&
+        time_to_end < max(0.08, 0.12 * info->duration_) &&
+        t_cur > fp_->replan_thresh2_ &&
         expl_manager_->frontier_finder_->isFrontierCovered()) {
       ROS_WARN("Replan: cluster covered");
       need_replan = true;
     }
 
     // Replan after some time
-    if (t_cur > fp_->replan_thresh3_) {
+    if (exec_ratio > 0.9 && t_cur > fp_->replan_thresh3_) {
       ROS_WARN("Replan: periodic call");
       need_replan = true;
     }
