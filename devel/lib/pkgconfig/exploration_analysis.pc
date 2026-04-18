@@ -1,0 +1,8 @@
+prefix=/home/jacob/fuel_star_ws/devel
+
+Name: exploration_analysis
+Description: Description of exploration_analysis
+Version: 1.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

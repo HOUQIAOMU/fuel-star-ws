@@ -247,9 +247,11 @@ inline int SDFMap::getOccupancy(const Eigen::Vector3i &id) {
     return UNKNOWN;
 
   if (occ > mp_->min_occupancy_log_) {
+    /*
     if (observed_dist > mp_->belief_dist_)
       return UNDEROBSERVED;
     else
+    */
       return OCCUPIED;
   }
 

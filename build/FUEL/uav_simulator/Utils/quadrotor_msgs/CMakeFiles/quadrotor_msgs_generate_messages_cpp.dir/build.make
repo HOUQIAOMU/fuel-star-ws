@@ -88,18 +88,18 @@ FUEL/uav_simulator/Utils/quadrotor_msgs/CMakeFiles/quadrotor_msgs_generate_messa
 
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/OutputData.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/OutputData.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/OutputData.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/OutputData.h: /opt/ros/noetic/share/geometry_msgs/msg/Vector3.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/OutputData.h: /opt/ros/noetic/share/geometry_msgs/msg/Quaternion.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/OutputData.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/OutputData.h: /opt/ros/noetic/share/geometry_msgs/msg/Vector3.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/OutputData.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/jacob/fuel_star_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Generating C++ code from quadrotor_msgs/OutputData.msg"
 	cd /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs && /home/jacob/fuel_star_ws/build/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/OutputData.msg -Iquadrotor_msgs:/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -Inav_msgs:/opt/ros/noetic/share/nav_msgs/cmake/../msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Iactionlib_msgs:/opt/ros/noetic/share/actionlib_msgs/cmake/../msg -p quadrotor_msgs -o /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs -e /opt/ros/noetic/share/gencpp/cmake/..
 
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/PositionCommand.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h: /opt/ros/noetic/share/geometry_msgs/msg/Point.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h: /opt/ros/noetic/share/geometry_msgs/msg/Vector3.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/PositionCommand.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/jacob/fuel_star_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Generating C++ code from quadrotor_msgs/PositionCommand.msg"
 	cd /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs && /home/jacob/fuel_star_ws/build/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/PositionCommand.msg -Iquadrotor_msgs:/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -Inav_msgs:/opt/ros/noetic/share/nav_msgs/cmake/../msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Iactionlib_msgs:/opt/ros/noetic/share/actionlib_msgs/cmake/../msg -p quadrotor_msgs -o /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs -e /opt/ros/noetic/share/gencpp/cmake/..
@@ -120,10 +120,10 @@ FUEL/uav_simulator/Utils/quadrotor_msgs/CMakeFiles/quadrotor_msgs_generate_messa
 
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/SO3Command.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /opt/ros/noetic/share/geometry_msgs/msg/Vector3.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /opt/ros/noetic/share/geometry_msgs/msg/Quaternion.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/AuxCommand.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /opt/ros/noetic/share/geometry_msgs/msg/Vector3.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/SO3Command.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/jacob/fuel_star_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Generating C++ code from quadrotor_msgs/SO3Command.msg"
 	cd /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs && /home/jacob/fuel_star_ws/build/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/SO3Command.msg -Iquadrotor_msgs:/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -Inav_msgs:/opt/ros/noetic/share/nav_msgs/cmake/../msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Iactionlib_msgs:/opt/ros/noetic/share/actionlib_msgs/cmake/../msg -p quadrotor_msgs -o /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs -e /opt/ros/noetic/share/gencpp/cmake/..
@@ -137,23 +137,23 @@ FUEL/uav_simulator/Utils/quadrotor_msgs/CMakeFiles/quadrotor_msgs_generate_messa
 
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/TRPYCommand.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/TRPYCommand.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/TRPYCommand.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/TRPYCommand.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/AuxCommand.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/TRPYCommand.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/TRPYCommand.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/AuxCommand.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/TRPYCommand.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/jacob/fuel_star_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Generating C++ code from quadrotor_msgs/TRPYCommand.msg"
 	cd /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs && /home/jacob/fuel_star_ws/build/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/TRPYCommand.msg -Iquadrotor_msgs:/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -Inav_msgs:/opt/ros/noetic/share/nav_msgs/cmake/../msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Iactionlib_msgs:/opt/ros/noetic/share/actionlib_msgs/cmake/../msg -p quadrotor_msgs -o /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs -e /opt/ros/noetic/share/gencpp/cmake/..
 
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/lib/gencpp/gen_cpp.py
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/Odometry.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Vector3.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/nav_msgs/msg/Odometry.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Quaternion.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/TwistWithCovariance.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Point.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/PoseWithCovariance.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Twist.msg
-/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Pose.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Quaternion.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/std_msgs/msg/Header.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Twist.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Point.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Vector3.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/geometry_msgs/msg/Pose.msg
+/home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/nav_msgs/msg/Odometry.msg
 /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs/Odometry.h: /opt/ros/noetic/share/gencpp/msg.h.template
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold --progress-dir=/home/jacob/fuel_star_ws/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Generating C++ code from quadrotor_msgs/Odometry.msg"
 	cd /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs && /home/jacob/fuel_star_ws/build/catkin_generated/env_cached.sh /usr/bin/python3 /opt/ros/noetic/share/gencpp/cmake/../../../lib/gencpp/gen_cpp.py /home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg/Odometry.msg -Iquadrotor_msgs:/home/jacob/fuel_star_ws/src/FUEL/uav_simulator/Utils/quadrotor_msgs/msg -Igeometry_msgs:/opt/ros/noetic/share/geometry_msgs/cmake/../msg -Inav_msgs:/opt/ros/noetic/share/nav_msgs/cmake/../msg -Istd_msgs:/opt/ros/noetic/share/std_msgs/cmake/../msg -Iactionlib_msgs:/opt/ros/noetic/share/actionlib_msgs/cmake/../msg -p quadrotor_msgs -o /home/jacob/fuel_star_ws/devel/include/quadrotor_msgs -e /opt/ros/noetic/share/gencpp/cmake/..

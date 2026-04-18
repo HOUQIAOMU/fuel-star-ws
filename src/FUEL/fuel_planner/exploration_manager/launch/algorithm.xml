@@ -78,8 +78,9 @@
 
     <!-- Fsm -->
     <param name="fsm/thresh_replan1" value="0.5" type="double"/>
-    <param name="fsm/thresh_replan2" value="0.5" type="double"/>
-    <param name="fsm/thresh_replan3" value="1.5" type="double"/>
+    <!-- 调大replan阈值，减少往复飞行 (原值: thresh_replan2=0.5, thresh_replan3=1.5) -->
+    <param name="fsm/thresh_replan2" value="2.0" type="double"/>
+    <param name="fsm/thresh_replan3" value="3.0" type="double"/>
 
     <!-- <param name="fsm/thresh_replan1" value="0.00001" type="double"/> -->
     <!-- <param name="fsm/thresh_replan2" value="100.0" type="double"/> -->
@@ -117,7 +118,8 @@
     <param name="frontier/candidate_rmax" value="3.0" type="double"/>
     <param name="frontier/down_sample" value="2" type="int"/>;
     <param name="frontier/min_visib_num" value="60" type="int"/>;
-    <param name="frontier/min_view_finish_fraction" value="0.45" type="double"/>;
+    <!-- 调大覆盖率门槛，避免部分覆盖的frontier反复触发重访 (原值: 0.45) -->
+    <param name="frontier/min_view_finish_fraction" value="0.70" type="double"/>;
     <param name="frontier/tsp_dir" value="$(find lkh_tsp_solver)/resource" type="string" />
     <param name="frontier/frt_cluster_radius" value="3.0" type="double" />
 

@@ -1,0 +1,234 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+Exploration Coverage Plotter
+=============================
+Subscribe to FUEL exploration system topics, record coverage volume over time,
+and plot the coverage(m^3) vs time(s) curve with summary statistics.
+
+Subscribed Topics:
+    /result/voxel_ratio  (std_msgs/Float32)  - discovered / total voxel ratio
+    /odom_world          (nav_msgs/Odometry)  - drone odometry
+
+Published Outputs:
+    - Real-time matplotlib figure: coverage vs time
+    - Annotation: total flight distance, total exploration time,
+                  average speed, total coverage volume
+
+Usage:
+    rosrun exploration_analysis coverage_plotter.py
+    roslaunch exploration_analysis coverage_plotter.launch
+"""
+
+from __future__ import print_function
+
+import os
+import math
+import threading
+
+import rospy
+from std_msgs.msg import Float32
+from nav_msgs.msg import Odometry
+
+import matplotlib
+matplotlib.use("TkAgg")
+import matplotlib.pyplot as plt
+
+
+class CoveragePlotter(object):
+    """Record exploration data and plot coverage-time curve."""
+
+    def __init__(self):
+        rospy.init_node("coverage_plotter", anonymous=True)
+
+        # ---------- parameters ----------
+        # Map voxel resolution (m) — must match sdf_map/resolution
+        self.resolution = rospy.get_param("~resolution", 0.1)
+        # Exploration bounding box (index space) — used together with
+        # voxel_ratio to derive absolute coverage volume.
+        box_min_x = rospy.get_param("~box_min_x", -8.0)
+        box_min_y = rospy.get_param("~box_min_y", -15.0)
+        box_min_z = rospy.get_param("~box_min_z", 0.0)
+        box_max_x = rospy.get_param("~box_max_x", 8.0)
+        box_max_y = rospy.get_param("~box_max_y", 15.0)
+        box_max_z = rospy.get_param("~box_max_z", 2.0)
+
+        # Total number of voxels in the bounding box
+        nx = int(math.ceil((box_max_x - box_min_x) / self.resolution))
+        ny = int(math.ceil((box_max_y - box_min_y) / self.resolution))
+        nz = int(math.ceil((box_max_z - box_min_z) / self.resolution))
+        self.total_voxels = nx * ny * nz
+        self.voxel_volume = self.resolution ** 3  # m^3 per voxel
+        self.total_volume = self.total_voxels * self.voxel_volume
+
+        # Save directory for the final figure
+        self.save_dir = rospy.get_param(
+            "~save_dir",
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "..", "resource"
+            ),
+        )
+
+        # ---------- state variables ----------
+        self.lock = threading.Lock()
+        self.start_time = None  # ros::Time of first odom msg
+
+        # time series
+        self.time_list = []       # seconds since start
+        self.coverage_list = []   # coverage volume (m^3)
+
+        # odometry tracking
+        self.last_pos = None
+        self.total_distance = 0.0  # m
+
+        # latest values
+        self.latest_ratio = 0.0
+
+        # ---------- subscribers ----------
+        rospy.Subscriber("/result/voxel_ratio", Float32, self._ratio_cb, queue_size=10)
+        rospy.Subscriber("/odom_world", Odometry, self._odom_cb, queue_size=10)
+
+        # ---------- matplotlib setup ----------
+        plt.ion()
+        self.fig, self.ax = plt.subplots(figsize=(10, 6))
+        self.line, = self.ax.plot([], [], "b-", linewidth=2, label="Coverage")
+        self.ax.set_xlabel("Time (s)", fontsize=13)
+        self.ax.set_ylabel(u"Coverage Volume (m\u00b3)", fontsize=13)
+        self.ax.set_title("Exploration Coverage over Time", fontsize=15)
+        self.ax.grid(True, linestyle="--", alpha=0.6)
+        self.ax.legend(loc="upper left", fontsize=11)
+        self.annotation = None
+
+        rospy.loginfo("[CoveragePlotter] Initialized. total_voxels=%d, "
+                      "voxel_volume=%.4f m^3, total_box_volume=%.2f m^3",
+                      self.total_voxels, self.voxel_volume, self.total_volume)
+
+    # ------------------------------------------------------------------ #
+    #  Callbacks
+    # ------------------------------------------------------------------ #
+    def _ratio_cb(self, msg):
+        """Receive discovered/total voxel ratio and record data point."""
+        if self.start_time is None:
+            return
+
+        with self.lock:
+            t = (rospy.Time.now() - self.start_time).to_sec()
+            self.latest_ratio = msg.data
+            coverage_vol = msg.data * self.total_volume
+            self.time_list.append(t)
+            self.coverage_list.append(coverage_vol)
+
+    def _odom_cb(self, msg):
+        """Accumulate flight distance from consecutive odometry messages."""
+        pos = (
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.y,
+            msg.pose.pose.position.z,
+        )
+
+        with self.lock:
+            if self.start_time is None:
+                self.start_time = rospy.Time.now()
+                rospy.loginfo("[CoveragePlotter] Start time recorded.")
+
+            if self.last_pos is not None:
+                dx = pos[0] - self.last_pos[0]
+                dy = pos[1] - self.last_pos[1]
+                dz = pos[2] - self.last_pos[2]
+                self.total_distance += math.sqrt(dx * dx + dy * dy + dz * dz)
+
+            self.last_pos = pos
+
+    # ------------------------------------------------------------------ #
+    #  Plotting
+    # ------------------------------------------------------------------ #
+    def _update_plot(self):
+        """Refresh the matplotlib figure with latest data."""
+        with self.lock:
+            if len(self.time_list) < 2:
+                return
+            ts = list(self.time_list)
+            cs = list(self.coverage_list)
+            dist = self.total_distance
+            ratio = self.latest_ratio
+
+        elapsed = ts[-1]
+        avg_speed = dist / elapsed if elapsed > 1e-3 else 0.0
+        coverage_vol = cs[-1]
+
+        # Update curve
+        self.line.set_xdata(ts)
+        self.line.set_ydata(cs)
+        self.ax.set_xlim(0, max(ts[-1] * 1.05, 1))
+        self.ax.set_ylim(0, max(max(cs) * 1.15, 1))
+
+        # Annotation box in upper-right corner
+        stats_text = (
+            u"Total Distance:      {:.2f} m\n"
+            u"Total Time:          {:.1f} s\n"
+            u"Avg Speed:           {:.3f} m/s\n"
+            u"Coverage Volume:     {:.2f} m\u00b3\n"
+            u"Coverage Ratio:      {:.2f}%"
+        ).format(dist, elapsed, avg_speed, coverage_vol, ratio * 100)
+
+        if self.annotation is not None:
+            self.annotation.remove()
+        self.annotation = self.ax.text(
+            0.98, 0.97, stats_text,
+            transform=self.ax.transAxes,
+            fontsize=10, fontfamily="monospace",
+            verticalalignment="top", horizontalalignment="right",
+            bbox=dict(boxstyle="round,pad=0.5", facecolor="wheat", alpha=0.8),
+        )
+
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
+
+    def _save_figure(self):
+        """Save the final figure to resource directory."""
+        if not os.path.isdir(self.save_dir):
+            os.makedirs(self.save_dir)
+        path = os.path.join(self.save_dir, "coverage_plot.png")
+        self.fig.savefig(path, dpi=150, bbox_inches="tight")
+        rospy.loginfo("[CoveragePlotter] Figure saved to %s", path)
+
+    def _save_csv(self):
+        """Save raw data to CSV for offline analysis."""
+        if not os.path.isdir(self.save_dir):
+            os.makedirs(self.save_dir)
+        path = os.path.join(self.save_dir, "coverage_data.csv")
+        with open(path, "w") as f:
+            f.write("time_s,coverage_m3\n")
+            for t, c in zip(self.time_list, self.coverage_list):
+                f.write("{:.3f},{:.4f}\n".format(t, c))
+        rospy.loginfo("[CoveragePlotter] Data saved to %s", path)
+
+    # ------------------------------------------------------------------ #
+    #  Main loop
+    # ------------------------------------------------------------------ #
+    def run(self):
+        """Main loop: update plot at ~2 Hz until ROS shutdown."""
+        rate = rospy.Rate(2)
+        try:
+            while not rospy.is_shutdown():
+                self._update_plot()
+                plt.pause(0.01)
+                rate.sleep()
+        except rospy.ROSInterruptException:
+            pass
+        finally:
+            # Save on exit
+            if len(self.time_list) > 0:
+                self._save_figure()
+                self._save_csv()
+            rospy.loginfo("[CoveragePlotter] Shutting down.")
+
+
+def main():
+    plotter = CoveragePlotter()
+    plotter.run()
+
+
+if __name__ == "__main__":
+    main()

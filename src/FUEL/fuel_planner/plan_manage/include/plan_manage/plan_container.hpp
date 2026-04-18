@@ -136,6 +136,7 @@ struct PlanParameters {
   double time_adjust_ = 0.0;
 };
 
+// 最终记录轨迹的结构体
 struct LocalTrajData {
   /* info of generated traj */
 

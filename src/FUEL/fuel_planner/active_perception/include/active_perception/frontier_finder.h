@@ -46,13 +46,13 @@ struct Viewpoint {
 // frontier的各种信息都存储在这个结构体里
 struct Frontier {
   // Complete voxels belonging to the cluster
-  vector<Vector3d> cells_;
+  vector<Vector3d> cells_;  //体素细胞cells
   // down-sampled voxels filtered by voxel grid filter
-  vector<Vector3d> filtered_cells_;
+  vector<Vector3d> filtered_cells_; //体素细胞cells经过体素滤波器过滤后的结果
   // Average position of all voxels
-  Vector3d average_;
+  Vector3d average_; // 体素平均位置
   // Average normal of all voxels
-  Vector3d normal_;
+  Vector3d normal_; // 体素平均法线
   // Idx of frontier
   int id_;
   // Idx of the cluster it belongs to
@@ -60,15 +60,15 @@ struct Frontier {
   int type_;
   bool divided;
   // Viewpoints that can cover the cluster
-  vector<Viewpoint> viewpoints_;
+  vector<Viewpoint> viewpoints_; // 可以覆盖这个frontier cluster的viewpoint，用向量存储视点信息
   // Bounding box of cluster, center & 1/2 side length
-  Vector3d box_min_, box_max_;
+  Vector3d box_min_, box_max_; //包围盒
   // Path and cost from this cluster to other clusters
   vector<vector<Vector3d>> paths_;
   vector<double> costs_;
 };
 
-//frontier组成的簇cluster
+//frontier组成的cluster
 struct FrontierCluster {
   vector<Frontier> frts_;
   Eigen::Vector3d center_;
@@ -81,7 +81,7 @@ struct checkPoint {
   Eigen::Vector3d pos_;
   vector<double> yaws_;
   vector<double> costs_;
-};
+}; //存取的只是最优视点
 
 // 用于优先队列的比较器，根据成本从小到大排序
 struct CompareCost {

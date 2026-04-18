@@ -42,14 +42,16 @@ double nearestEquivalentYaw(double reference_yaw, double target_yaw) {
 }
 
 constexpr double kRecentClusterPenaltyRadius = 3.5;
-constexpr double kRecentClusterFarThreshold = 5.0;
+// 调大远距离阈值，使抑制机制在更大范围内生效，减少重访 (原值: 5.0)
+constexpr double kRecentClusterFarThreshold = 8.0;
 constexpr double kRecentClusterPenaltyBase = 12.0;
 constexpr double kRecentClusterMinSeparation = 1.0;
 constexpr size_t kRecentClusterHistoryLimit = 20;
 constexpr double kClusterUtilityBonusScale = 0.02;
 constexpr double kClusterUtilityBonusCap = 10.0;
 constexpr double kCommittedClusterMatchRadius = 2.5;
-constexpr double kCommittedClusterSwitchMargin = 2.5;
+// 调大切换门槛，减少在相似代价cluster间跳来跳去 (原值: 2.5)
+constexpr double kCommittedClusterSwitchMargin = 5.0;
 constexpr double kCommittedClusterReachThresh = 1.2;
 } // namespace
 
@@ -516,7 +518,7 @@ int FastExplorationManager::planExploreMotionCluster(const Vector3d &pos,
     // use waypoints-based optimization
     if (ed_->path_next_goal_.size() < 2) {
       ROS_WARN("Path too short, frontier reached, force update");
-  // 强制重新搜索 frontier，让当前位置附近的 frontier 被消除
+  //强制重新搜索 frontier，让当前位置附近的 frontier 被消除
       frontier_finder_->searchFrontiers(pos);
       frontier_finder_->computeFrontiersToVisit(pos);
       bool neighbor;
@@ -876,6 +878,7 @@ void FastExplorationManager::updateRecentClusterHistory(
     recent_cluster_history_.erase(recent_cluster_history_.begin());
 }
 
+// find localTour:在cluster内寻找访问顺序，输入当前状态和下一个cluster中心，输出访问顺序的index
 void FastExplorationManager::findLocalTour(const Vector3d &cur_pos,
                                            const Vector3d &cur_vel,
                                            const Vector3d cur_yaw,

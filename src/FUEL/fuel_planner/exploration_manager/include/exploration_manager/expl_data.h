@@ -33,7 +33,7 @@ struct FSMParam {
   double replan_thresh2_;
   double replan_thresh3_;
   double replan_time_; // second
-};
+}; //保存odom，起始状态，最新轨迹等，是否静止重规划等
 
 struct ExplorationData {
   ros::Time start_time_, finish_time_;

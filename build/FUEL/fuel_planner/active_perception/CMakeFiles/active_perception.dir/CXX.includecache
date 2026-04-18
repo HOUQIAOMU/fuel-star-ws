@@ -89,6 +89,8 @@ pcl/point_types.h
 -
 plan_env/edt_environment.h
 -
+sstream
+-
 Eigen/Eigenvalues
 -
 pcl/filters/voxel_grid.h

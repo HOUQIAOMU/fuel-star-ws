@@ -205,8 +205,10 @@ bool FrontierFinder::isFrontierCellActive(const Eigen::Vector3i &idx) {
   if (isNeighborUnknown(idx))
     return true;
 
-  if (isNeighborUnderObserved(idx))
+  /*
+    if (isNeighborUnderObserved(idx))
     return true;
+    */
 
   return false;
 }
@@ -306,13 +308,15 @@ void FrontierFinder::expandFrontier(
   vector<Eigen::Vector3d> expanded;
   Vector3d pos;
 
-  int ftr_type;
-  if (isNeighborUnderObserved(first)) {
-    ftr_type = SURFACEFTR;
-  } else {
-    ftr_type = UNKNOWNFTR;
-    // return;
-  }
+  // pcl_render_node仿真下UNDEROBSERVED无效，直接设为UNKNOWNFTR
+  int ftr_type = UNKNOWNFTR;
+  // int ftr_type;
+  // if (isNeighborUnderObserved(first)) {
+  //   ftr_type = SURFACEFTR;
+  // } else {
+  //   ftr_type = UNKNOWNFTR;
+  //   // return;
+  // }
 
   edt_env_->sdf_map_->indexToPos(first, pos);
   expanded.push_back(pos);
@@ -320,7 +324,9 @@ void FrontierFinder::expandFrontier(
   frontier_flag_[toadr(first)] = 1;
   auto addCell = [&](int adr, Eigen::Vector3i nbr, Eigen::Vector3d pos) {
     edt_env_->sdf_map_->indexToPos(nbr, pos);
-    if (pos[2] < 0.5 || pos[2] > 6.5)
+    // 修正硬编码Z限制，与box_max_z=2.0一致，原值6.5远超边界
+    // if (pos[2] < 0.5 || pos[2] > 6.5)
+    if (pos[2] < 0.3 || pos[2] > 2.0)
       return;
     expanded.push_back(pos);
     cell_queue.push(nbr);
@@ -343,10 +349,14 @@ void FrontierFinder::expandFrontier(
       // {
       //   addCell(adr, nbr, pos);
       // }
-      if (knownfree(nbr) &&
-          (isNeighborUnderObserved(nbr) || isNeighborUnknown(nbr))) {
+      // pcl_render_node仿真下UNDEROBSERVED无效，去掉isNeighborUnderObserved检查
+      if (knownfree(nbr) && isNeighborUnknown(nbr)) {
         addCell(adr, nbr, pos);
       }
+      // if (knownfree(nbr) &&
+      //     (isNeighborUnderObserved(nbr) || isNeighborUnknown(nbr))) {
+      //   addCell(adr, nbr, pos);
+      // }
     }
   }
   if (expanded.size() > cluster_min_) {
@@ -961,12 +971,12 @@ void FrontierFinder::computeFrontiersToVisit(Eigen::Vector3d cur_pos) {
         Eigen::Vector3d pos_dir = (cur_pos - inserted->average_).normalized();
         Eigen::Vector3d v1_dir = (v1.pos_ - inserted->average_).normalized();
         Eigen::Vector3d v2_dir = (v2.pos_ - inserted->average_).normalized();
-        double score_v1 = abs(inserted->normal_.dot(v1_dir)) *
+        //double score_v1 = abs(inserted->normal_.dot(v1_dir)) *
                           pos_dir.dot(v1_dir) * v1.visib_num_;
-        double score_v2 = abs(inserted->normal_.dot(v2_dir)) *
+        //double score_v2 = abs(inserted->normal_.dot(v2_dir)) *
                           pos_dir.dot(v2_dir) * v2.visib_num_;
-        // double score_v1 = pos_dir.dot(v1_dir) * v1.visib_num_;
-        // double score_v2 = pos_dir.dot(v2_dir) * v2.visib_num_;
+        double score_v1 = pos_dir.dot(v1_dir) * v1.visib_num_;
+        double score_v2 = pos_dir.dot(v2_dir) * v2.visib_num_;
         return score_v1 > score_v2;
       };
       sort(inserted->viewpoints_.begin(), inserted->viewpoints_.end(), compare);
@@ -1617,9 +1627,10 @@ bool FrontierFinder::isNearObstacle(const Eigen::Vector3d &pos) {
         Eigen::Vector3d vox;
         vox << pos[0] + x * resolution_, pos[1] + y * resolution_,
             pos[2] + z * resolution_;
+        // pcl_render_node仿真下UNDEROBSERVED无效，去掉该检查
         if (edt_env_->sdf_map_->getOccupancy(vox) == SDFMap::UNKNOWN ||
-            edt_env_->sdf_map_->getOccupancy(vox) == SDFMap::OCCUPIED ||
-            edt_env_->sdf_map_->getOccupancy(vox) == SDFMap::UNDEROBSERVED)
+            edt_env_->sdf_map_->getOccupancy(vox) == SDFMap::OCCUPIED)
+            // || edt_env_->sdf_map_->getOccupancy(vox) == SDFMap::UNDEROBSERVED)
           return true;
       }
   return false;

@@ -18,10 +18,17 @@
     <arg name="map_size_y_" value="$(arg map_size_y)"/>
     <arg name="map_size_z_" value="$(arg map_size_z)"/>
 
-    <arg name="box_min_x" value="-10.0"/>
+    <!-- 收紧X方向边界，匹配office.pcd实际范围[-7.97,7.67]，避免飞出办公室 -->
+    <!-- <arg name="box_min_x" value="-10.0"/> -->
+    <!-- <arg name="box_min_y" value="-15.0"/> -->
+    <!-- <arg name="box_min_z" value=" 0.0"/> -->
+    <!-- <arg name="box_max_x" value="10.0"/> -->
+    <!-- <arg name="box_max_y" value="15.0"/> -->
+    <!-- <arg name="box_max_z" value=" 2.0"/> -->
+    <arg name="box_min_x" value="-8.0"/>
     <arg name="box_min_y" value="-15.0"/>
     <arg name="box_min_z" value=" 0.0"/>
-    <arg name="box_max_x" value="10.0"/>
+    <arg name="box_max_x" value="8.0"/>
     <arg name="box_max_y" value="15.0"/>
     <arg name="box_max_z" value=" 2.0"/>
 

@@ -17,7 +17,7 @@ void FastExplorationFSM::init(ros::NodeHandle &nh) {
   fp_.reset(new FSMParam); 
   fd_.reset(new FSMData);
 
-  /*  Fsm param  */
+  /*  Fsm param  */ //fsm参数赋值
   nh.param("fsm/thresh_replan1", fp_->replan_thresh1_, -1.0);
   nh.param("fsm/thresh_replan2", fp_->replan_thresh2_, -1.0);
   nh.param("fsm/thresh_replan3", fp_->replan_thresh3_, -1.0);

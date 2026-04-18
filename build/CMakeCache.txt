@@ -779,6 +779,12 @@ cv_bridge_DIR:PATH=/opt/ros/noetic/share/cv_bridge/cmake
 dynamic_reconfigure_DIR:PATH=/opt/ros/noetic/share/dynamic_reconfigure/cmake
 
 //Value Computed by CMake
+exploration_analysis_BINARY_DIR:STATIC=/home/jacob/fuel_star_ws/build/FUEL/fuel_planner/exploration_analysis
+
+//Value Computed by CMake
+exploration_analysis_SOURCE_DIR:STATIC=/home/jacob/fuel_star_ws/src/FUEL/fuel_planner/exploration_analysis
+
+//Value Computed by CMake
 exploration_manager_BINARY_DIR:STATIC=/home/jacob/fuel_star_ws/build/FUEL/fuel_planner/exploration_manager
 
 //Value Computed by CMake
